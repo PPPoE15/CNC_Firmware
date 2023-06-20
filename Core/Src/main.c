@@ -43,8 +43,29 @@
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-uint16_t WorkSpeed = 100;
-uint16_t FreeSpeed = 200;
+
+/*
+   PulsePerRound(PPM)                                          2048
+----------------------- = PulsePerMilimeter (PPM)              ----  = 204.8
+MilimetersPerRound(MPR)                                         10
+
+                                       mm                                 
+Speed [PPS] - PulsePerSecond =  PPM * ---   
+                                       s
+*/       
+
+uint16_t WorkSpeed = 2048 / 10 * 50;   // 10240 PPS
+uint16_t FreeSpeed = 2048 / 10 * 100;  // 20480 PPS
+
+uint32_t X_pos = 0;
+uint32_t Y_pos = 0;
+uint32_t Z_pos = 0;
+
+
+uint8_t X_dir = 1; //1 - cw, 0 - ccw
+uint8_t Y_dir = 1;
+uint8_t Z_dir = 1;
+
 
 uint8_t str[3];
 uint8_t TxD[1];
@@ -191,6 +212,37 @@ void CNC_Main(void)  // main CNC cycle
 		}
 	}
 }
+
+
+void X_updatePosition(void){
+	if(X_dir == 1){
+		X_pos ++;
+	}
+	else{
+		X_pos --;
+	}
+}
+
+void Y_updatePosition(void){
+	if(Y_dir == 1){
+		Y_pos ++;
+	}
+	else{
+		Y_pos --;
+	}
+}
+
+void Z_updatePosition(void){
+	if(Z_dir == 1){
+		Z_pos ++;
+	}
+	else{
+		Z_pos --;
+	}
+}
+
+
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -333,6 +385,7 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -348,12 +401,22 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : X_hall_Pin Y_hall_Pin Z_hall_Pin */
+  GPIO_InitStruct.Pin = X_hall_Pin|Y_hall_Pin|Z_hall_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
   /*Configure GPIO pin : Air_Pin */
   GPIO_InitStruct.Pin = Air_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(Air_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
