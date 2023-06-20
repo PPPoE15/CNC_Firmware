@@ -43,6 +43,8 @@
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+uint16_t WorkSpeed = 100;
+uint16_t FreeSpeed = 200;
 
 uint8_t str[3];
 uint8_t TxD[1];
@@ -57,8 +59,7 @@ message = '4' - program if completed
 message = '5' - error message
 */
 
-uint32_t x_coord;  
-uint32_t y_coord;
+
 
 /* USER CODE END PV */
 
@@ -99,6 +100,22 @@ uint8_t CNC_Frame(uint32_t x, uint32_t y){
 	return(1);
 }
 
+uint8_t CNC_WorkMove(uint32_t x, uint32_t y){
+	HAL_Delay(500);
+	//message = '1'; // ready-message
+	//HAL_UART_Transmit(&huart1, &message, 1, 10); // send ready command
+	send_message('1');
+	return(1);
+}
+
+uint8_t CNC_FreeMove(uint32_t x, uint32_t y){
+	HAL_Delay(500);
+	//message = '1'; // ready-message
+	//HAL_UART_Transmit(&huart1, &message, 1, 10); // send ready command
+	send_message('1');
+	return(1);
+}
+
 void compressor_on(void)
 {
 	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_RESET);
@@ -120,6 +137,8 @@ void CNC_Main(void)  // main CNC cycle
 { 
 	uint8_t str[3];
 	uint8_t coord[6];	
+	uint32_t x_coord;  
+	uint32_t y_coord;
 	
 	while (1)
 	{	
@@ -138,7 +157,16 @@ void CNC_Main(void)  // main CNC cycle
 					while ( HAL_UART_Receive(&huart1, coord, 6, 10) != HAL_OK ){}
 					y_coord = 100000*(coord[0]- '0') + 10000*(coord[1]- '0') + 1000*(coord[2]- '0') + 100*(coord[3]- '0') + 10*(coord[4]- '0') + (coord[5]- '0'); // write a x-coord variable
 						
-					CNC_Frame(x_coord, y_coord);
+					switch(current_command)
+					{
+						case '1':
+							CNC_FreeMove(x_coord, y_coord);
+							break;
+						
+						case '3':
+							CNC_WorkMove(x_coord, y_coord);
+							break;
+					}
 					break;
 						
 			case '0':
