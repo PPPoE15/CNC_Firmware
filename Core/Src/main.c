@@ -44,6 +44,22 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
+uint8_t str[3];
+uint8_t TxD[1];
+uint8_t current_command = 0;
+uint8_t message = '0';  // zero state message
+/*
+message = '0' - zero state message
+message = '1' - ready to next frame message
+message = '2' - ready to get x-coord
+message = '3' - ready to get y-coord
+message = '4' - program if completed
+message = '5' - error message
+*/
+
+uint32_t x_coord;  
+uint32_t y_coord;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -52,6 +68,94 @@ static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
+
+void send_message(uint8_t message)
+{
+	
+	TxD[0] = message;
+	HAL_UART_Transmit(&huart1, TxD, 1, 10); // send ready command
+	HAL_Delay(10);
+}
+
+void CNC_Init (void)
+{
+	uint8_t request[1];  // ready-message
+	while ( HAL_UART_Receive(&huart1, request, 1, 10) != HAL_OK ){}  // waiting request from PC
+	if (request[0] == '1'){
+		send_message('1');
+		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		HAL_Delay(500);
+		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+	}
+}
+
+uint8_t CNC_Frame(uint32_t x, uint32_t y){
+	HAL_Delay(500);
+	//message = '1'; // ready-message
+	//HAL_UART_Transmit(&huart1, &message, 1, 10); // send ready command
+	send_message('1');
+	return(1);
+}
+
+void compessor_on(void)
+{
+	HAL_Delay(10);
+	send_message('1');  // ready-message
+}
+
+void compessor_off(void)
+{
+	HAL_Delay(10);
+	send_message('1');  // ready-message
+}
+
+void CNC_Main(void)  // main CNC cycle
+{ 
+	uint8_t str[3];
+	uint8_t coord[6];	
+	
+	while (1)
+	{	
+		while ( HAL_UART_Receive(&huart1, str, 1, 10) != HAL_OK ){} // waiting for command from PC
+			
+		current_command = str[0];
+
+		switch(current_command)
+		{
+			case '1': case '3':  //  get a coordinate command (free or work moving) G00 = '1' / G01 = '3'
+					send_message('2');  // ready to get x-coord
+					while ( HAL_UART_Receive(&huart1, coord, 6, 10) != HAL_OK ){}
+					x_coord = 100000*(coord[0]- '0') + 10000*(coord[1]- '0') + 1000*(coord[2]- '0') + 100*(coord[3]- '0') + 10*(coord[4]- '0') + (coord[5]- '0'); // write a x-coord variable
+						
+					send_message('3'); // ready to get y-coord
+					while ( HAL_UART_Receive(&huart1, coord, 6, 10) != HAL_OK ){}
+					y_coord = 100000*(coord[0]- '0') + 10000*(coord[1]- '0') + 1000*(coord[2]- '0') + 100*(coord[3]- '0') + 10*(coord[4]- '0') + (coord[5]- '0'); // write a x-coord variable
+						
+					CNC_Frame(x_coord, y_coord);
+					break;
+						
+			case '0':
+					send_message('1'); // ready-message
+					break;
+
+			case '2':  // compressor on
+					compessor_on();
+					break;
+			
+			case '4':  // compressor off
+					compessor_off();
+					break;
+			
+			case '5':  // final of programm
+					send_message('4'); // program is completed
+					break;
+			
+			default:
+					send_message('5'); // error
+					break;
+		}
+	}
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -96,6 +200,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		CNC_Init();
+		CNC_Main();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
