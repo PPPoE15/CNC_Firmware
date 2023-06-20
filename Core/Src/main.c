@@ -89,6 +89,8 @@ void CNC_Init (void)
 	}
 }
 
+
+
 uint8_t CNC_Frame(uint32_t x, uint32_t y){
 	HAL_Delay(500);
 	//message = '1'; // ready-message
@@ -97,16 +99,21 @@ uint8_t CNC_Frame(uint32_t x, uint32_t y){
 	return(1);
 }
 
-void compessor_on(void)
+void compressor_on(void)
 {
-	HAL_Delay(10);
+	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_RESET);
 	send_message('1');  // ready-message
 }
 
-void compessor_off(void)
+void compressor_off(void)
 {
-	HAL_Delay(10);
+	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_SET);
 	send_message('1');  // ready-message
+}
+
+void CNC_DeInit(void)
+{
+	compressor_off();
 }
 
 void CNC_Main(void)  // main CNC cycle
@@ -139,11 +146,11 @@ void CNC_Main(void)  // main CNC cycle
 					break;
 
 			case '2':  // compressor on
-					compessor_on();
+					compressor_on();
 					break;
 			
 			case '4':  // compressor off
-					compessor_off();
+					compressor_off();
 					break;
 			
 			case '5':  // final of programm
@@ -202,6 +209,7 @@ int main(void)
   {
 		CNC_Init();
 		CNC_Main();
+		CNC_DeInit();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -297,9 +305,13 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, LED1_Pin|LED2_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : LED1_Pin LED2_Pin */
   GPIO_InitStruct.Pin = LED1_Pin|LED2_Pin;
@@ -307,6 +319,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Air_Pin */
+  GPIO_InitStruct.Pin = Air_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(Air_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
