@@ -54,22 +54,26 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
+void X_updatePosition(void);
+void Y_updatePosition(void);
+void Z_updatePosition(void);
+
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define X_hall_Pin GPIO_PIN_1
+#define X_hall_GPIO_Port GPIOA
+#define X_hall_EXTI_IRQn EXTI1_IRQn
+#define Y_hall_Pin GPIO_PIN_2
+#define Y_hall_GPIO_Port GPIOA
+#define Y_hall_EXTI_IRQn EXTI2_IRQn
+#define Z_hall_Pin GPIO_PIN_3
+#define Z_hall_GPIO_Port GPIOA
+#define Z_hall_EXTI_IRQn EXTI3_IRQn
 #define LED1_Pin GPIO_PIN_6
 #define LED1_GPIO_Port GPIOA
 #define LED2_Pin GPIO_PIN_7
 #define LED2_GPIO_Port GPIOA
-#define X_hall_Pin GPIO_PIN_10
-#define X_hall_GPIO_Port GPIOE
-#define X_hall_EXTI_IRQn EXTI15_10_IRQn
-#define Y_hall_Pin GPIO_PIN_11
-#define Y_hall_GPIO_Port GPIOE
-#define Y_hall_EXTI_IRQn EXTI15_10_IRQn
-#define Z_hall_Pin GPIO_PIN_12
-#define Z_hall_GPIO_Port GPIOE
-#define Z_hall_EXTI_IRQn EXTI15_10_IRQn
 #define Air_Pin GPIO_PIN_7
 #define Air_GPIO_Port GPIOB
 
