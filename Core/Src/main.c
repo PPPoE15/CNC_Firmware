@@ -21,7 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <math.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,15 +55,15 @@ Speed [PPS] - PulsePerSecond =  PPM * ---
                                        s
 */       
 
-uint16_t WorkSpeed = 2048 / 10 * 50;   // 10240 PPS
-uint16_t FreeSpeed = 2048 / 10 * 100;  // 20480 PPS
+int16_t WorkSpeed = 2048 / 10 * 50;   // 10240 PPS
+int16_t FreeSpeed = 2048 / 10 * 100;  // 20480 PPS
 
 uint32_t X_pos = 0;
 uint32_t Y_pos = 0;
 uint32_t Z_pos = 0;
 
 
-uint8_t X_dir = 1; //1 - cw, 0 - ccw
+uint8_t X_dir = 1; //1 - cw -->, 0 - ccw <--
 uint8_t Y_dir = 1;
 uint8_t Z_dir = 1;
 
@@ -80,8 +81,15 @@ message = '4' - program if completed
 message = '5' - error message
 */
 
+	int32_t X_e;
+	int32_t Y_e;
+	int16_t X_speed = 0;
+	int16_t Y_speed = 0;
+	float dt;
+	float feed_rate;
 
 
+uint8_t mode = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -111,28 +119,73 @@ void CNC_Init (void)
 	}
 }
 
-
-
-uint8_t CNC_Frame(uint32_t x, uint32_t y){
-	HAL_Delay(500);
-	//message = '1'; // ready-message
-	//HAL_UART_Transmit(&huart1, &message, 1, 10); // send ready command
-	send_message('1');
-	return(1);
+float PID (int32_t e, int16_t max_speed)
+{
+	float speed;
+	float k_p = 1.000;
+	float k_i = 0.001;
+	float k_d = 0.001;
+	speed = e * k_p;
+	if( speed > max_speed ) { speed = max_speed; }
+	return speed;
 }
 
+void CNC_Moving(uint32_t x, uint32_t y, int16_t max_speed)
+{
+	
+/*
+	variables was here...
+	
+	
+	
+	*/
+	mode = 'a';
+	X_e = x - X_pos; // x-axis deviation
+	mode++;
+	Y_e = y - Y_pos; // y-axis deviation
+	mode = 'y';
+	while (X_e != 0)  //  while (X_e != 0 && Y_e != 0);
+	{
+		mode = '8';
+		X_e = x - X_pos; // x-axis deviation
+		Y_e = y - Y_pos; // y-axis deviation
+		feed_rate = PID(X_e, max_speed); // get feed rate from PID
+		dt = sqrtf(X_e*X_e + Y_e*Y_e) / feed_rate; // get dt for calculate X and Y speed separately
+		X_speed = X_e/dt; // get X speed
+		Y_speed = Y_e/dt; // get Y speed
+		mode = '7';
+		if (X_speed < 0) // convert signed speed to unsigned speed and direction
+		{
+			X_speed *= -1;
+			X_dir = 0;
+		}
+		else { X_dir = 1; }
+		
+		if (Y_speed < 0) // convert signed speed to unsigned speed and direction
+		{
+			Y_speed *= -1;
+			Y_dir = 0;
+		}
+		else { Y_dir = 1; }
+		
+		
+
+	}
+}
+
+
+
 uint8_t CNC_WorkMove(uint32_t x, uint32_t y){
+	CNC_Moving(x, y, WorkSpeed);
 	HAL_Delay(500);
-	//message = '1'; // ready-message
-	//HAL_UART_Transmit(&huart1, &message, 1, 10); // send ready command
 	send_message('1');
 	return(1);
 }
 
 uint8_t CNC_FreeMove(uint32_t x, uint32_t y){
+	CNC_Moving(x, y, FreeSpeed);
+	mode = '4';
 	HAL_Delay(500);
-	//message = '1'; // ready-message
-	//HAL_UART_Transmit(&huart1, &message, 1, 10); // send ready command
 	send_message('1');
 	return(1);
 }
@@ -166,10 +219,24 @@ void CNC_Main(void)  // main CNC cycle
 		while ( HAL_UART_Receive(&huart1, str, 1, 10) != HAL_OK ){} // waiting for command from PC
 			
 		current_command = str[0];
-
+		mode = '9';
 		switch(current_command)
 		{
-			case '1': case '3':  //  get a coordinate command (free or work moving) G00 = '1' / G01 = '3'
+			case '1':   // (free moving)  get a coordinate command G00 = '1' 
+					mode = '1';
+					send_message('2');  // ready to get x-coord
+					while ( HAL_UART_Receive(&huart1, coord, 6, 10) != HAL_OK ){}
+					x_coord = 100000*(coord[0]- '0') + 10000*(coord[1]- '0') + 1000*(coord[2]- '0') + 100*(coord[3]- '0') + 10*(coord[4]- '0') + (coord[5]- '0'); // write a x-coord variable
+						
+					send_message('3'); // ready to get y-coord
+					while ( HAL_UART_Receive(&huart1, coord, 6, 10) != HAL_OK ){}
+					y_coord = 100000*(coord[0]- '0') + 10000*(coord[1]- '0') + 1000*(coord[2]- '0') + 100*(coord[3]- '0') + 10*(coord[4]- '0') + (coord[5]- '0'); // write a x-coord variable
+					mode = '3';	
+					CNC_FreeMove(x_coord, y_coord);
+					mode = '2';
+			break;
+			
+			case '3':  // (work moving)  get a coordinate command G01 = '3' 
 					send_message('2');  // ready to get x-coord
 					while ( HAL_UART_Receive(&huart1, coord, 6, 10) != HAL_OK ){}
 					x_coord = 100000*(coord[0]- '0') + 10000*(coord[1]- '0') + 1000*(coord[2]- '0') + 100*(coord[3]- '0') + 10*(coord[4]- '0') + (coord[5]- '0'); // write a x-coord variable
@@ -178,37 +245,30 @@ void CNC_Main(void)  // main CNC cycle
 					while ( HAL_UART_Receive(&huart1, coord, 6, 10) != HAL_OK ){}
 					y_coord = 100000*(coord[0]- '0') + 10000*(coord[1]- '0') + 1000*(coord[2]- '0') + 100*(coord[3]- '0') + 10*(coord[4]- '0') + (coord[5]- '0'); // write a x-coord variable
 						
-					switch(current_command)
-					{
-						case '1':
-							CNC_FreeMove(x_coord, y_coord);
-							break;
-						
-						case '3':
-							CNC_WorkMove(x_coord, y_coord);
-							break;
-					}
-					break;
+					CNC_WorkMove(x_coord, y_coord);
+					mode = '3';
+			break;
+					
 						
 			case '0':
 					send_message('1'); // ready-message
-					break;
+			break;
 
 			case '2':  // compressor on
 					compressor_on();
-					break;
+			break;
 			
 			case '4':  // compressor off
 					compressor_off();
-					break;
+			break;
 			
 			case '5':  // final of programm
 					send_message('4'); // program is completed
-					break;
+			break;
 			
 			default:
 					send_message('5'); // error
-					break;
+			break;
 		}
 	}
 }
@@ -240,6 +300,7 @@ void Z_updatePosition(void){
 		Z_pos --;
 	}
 }
+
 
 
 
