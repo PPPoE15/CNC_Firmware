@@ -25,7 +25,7 @@ with open(path) as gcode:
         command = str(command).strip("'[]'")
         buf[0].append(command)
 
-        x_coord = re.findall(r'X.?\d+.?\d+', line)
+        x_coord = re.findall(r'X+(\d*\.\d+|\d+)?', line)
         x_coord = str(x_coord).strip("'[GMXY]'")
         if x_coord != '':
             x_coord = rnd(float(x_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
@@ -35,7 +35,7 @@ with open(path) as gcode:
 
         buf[1].append(x_coord)
 
-        y_coord = re.findall(r'Y.?\d+.?\d+', line)
+        y_coord = re.findall(r'Y+(\d*\.\d+|\d+)?', line)
         y_coord = str(y_coord).strip("'[GMXY]'")
         if y_coord != '':
             y_coord = rnd(float(y_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
@@ -44,11 +44,7 @@ with open(path) as gcode:
             y_coord = bytes('{:0>6}'.format(y_coord), 'ascii')
         buf[2].append(y_coord)
 
-        # print(command)
-        # print(x_coord)
-        # print(y_coord)
-
-
+        # print(command + str(x_coord)  + str(y_coord))
 
 print('parsing done')
 
@@ -119,5 +115,7 @@ for i in range(len(buf[0])):
                 print('Ошибка! Неизвестная команда')
 
         print(int(i))
-        # print(buf[2][i])
-        # print(buf[2][i])
+
+
+
+
