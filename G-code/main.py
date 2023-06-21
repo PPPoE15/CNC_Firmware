@@ -7,11 +7,18 @@ buf = [[], [], []]
 ppm = 2048/10  # pulse per millimeter
 sleep = 0.1
 
+
 def rnd(num):
     return int(num + (0.5 if num > 0 else -0.5))
 
 
-with open('glue.gcode') as gcode:
+print('Enter the g-code file full path \n')
+path = input()
+print('Enter COM-port number \n')
+com_num = input()
+
+
+with open(path) as gcode:
     for line in gcode:
         line = line.strip()
         command = re.findall(r'[MG].?\d+.?\d+', line)
@@ -46,7 +53,7 @@ with open('glue.gcode') as gcode:
 print('parsing done')
 
 
-ser = serial.Serial('COM5', 115200)  # make connection with stm32
+ser = serial.Serial(com_num, 115200)  # make connection with stm32
 print('connected')
 time.sleep(sleep)
 
