@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,6 +65,70 @@ message = '5' - error message
 uint32_t x_coord;  
 uint32_t y_coord;
 
+uint32_t X_duty_A;
+uint32_t X_duty_B;
+uint32_t X_duty_C;
+uint32_t Y_duty_A;
+uint32_t Y_duty_B;
+uint32_t Y_duty_C;
+
+uint16_t X_step_A = 0;
+uint16_t X_step_B = 171;
+uint16_t X_step_C = 341;
+
+uint16_t Y_step_A = 0;
+uint16_t Y_step_B = 171;
+uint16_t Y_step_C = 341;
+
+uint8_t X_dir = 1;
+uint8_t Y_dir = 1;
+uint32_t X_pos = 0;
+uint32_t Y_pos = 0;
+
+uint16_t sine_LookUp[] = {
+		16800,17006,17212,17418,17624,17830,18036,18241,18447,18652,18856,19061,19265,19469,19672,19875,
+20078,20279,20481,20682,20882,21082,21281,21479,21677,21874,22070,22265,22460,22653,22846,23038,
+23229,23419,23608,23796,23983,24169,24353,24537,24719,24901,25081,25259,25437,25613,25788,25961,
+26134,26304,26474,26641,26808,26973,27136,27298,27458,27616,27773,27929,28082,28234,28384,28533,
+28679,28824,28967,29109,29248,29385,29521,29655,29787,29916,30044,30170,30294,30416,30535,30653,
+30769,30882,30994,31103,31210,31315,31417,31518,31616,31712,31806,31898,31987,32074,32159,32241,
+32321,32399,32474,32547,32618,32686,32752,32816,32877,32935,32991,33045,33097,33145,33192,33236,
+33277,33316,33353,33387,33418,33447,33474,33498,33519,33538,33554,33568,33580,33589,33595,33599,
+33600,33599,33595,33589,33580,33568,33554,33538,33519,33498,33474,33447,33418,33387,33353,33316,
+33277,33236,33192,33145,33097,33045,32991,32935,32877,32816,32752,32686,32618,32547,32474,32399,
+32321,32241,32159,32074,31987,31898,31806,31712,31616,31518,31417,31315,31210,31103,30994,30882,
+30769,30653,30535,30416,30294,30170,30044,29916,29787,29655,29521,29385,29248,29109,28967,28824,
+28679,28533,28384,28234,28082,27929,27773,27616,27458,27298,27136,26973,26808,26641,26474,26304,
+26134,25961,25788,25613,25437,25259,25081,24901,24719,24537,24353,24169,23983,23796,23608,23419,
+23229,23038,22846,22653,22460,22265,22070,21874,21677,21479,21281,21082,20882,20682,20481,20279,
+20078,19875,19672,19469,19265,19061,18856,18652,18447,18241,18036,17830,17624,17418,17212,17006,
+16800,16594,16388,16182,15976,15770,15564,15359,15153,14948,14744,14539,14335,14131,13928,13725,
+13522,13321,13119,12918,12718,12518,12319,12121,11923,11726,11530,11335,11140,10947,10754,10562,
+10371,10181,9992,9804,9617,9431,9247,9063,8881,8699,8519,8341,8163,7987,7812,7639,
+7466,7296,7126,6959,6792,6627,6464,6302,6142,5984,5827,5671,5518,5366,5216,5067,
+4921,4776,4633,4491,4352,4215,4079,3945,3813,3684,3556,3430,3306,3184,3065,2947,
+2831,2718,2606,2497,2390,2285,2183,2082,1984,1888,1794,1702,1613,1526,1441,1359,
+1279,1201,1126,1053,982,914,848,784,723,665,609,555,503,455,408,364,
+323,284,247,213,182,153,126,102,81,62,46,32,20,11,5,1,
+0,1,5,11,20,32,46,62,81,102,126,153,182,213,247,284,
+323,364,408,455,503,555,609,665,723,784,848,914,982,1053,1126,1201,
+1279,1359,1441,1526,1613,1702,1794,1888,1984,2082,2183,2285,2390,2497,2606,2718,
+2831,2947,3065,3184,3306,3430,3556,3684,3813,3945,4079,4215,4352,4491,4633,4776,
+4921,5067,5216,5366,5518,5671,5827,5984,6142,6302,6464,6627,6792,6959,7126,7296,
+7466,7639,7812,7987,8163,8341,8519,8699,8881,9063,9247,9431,9617,9804,9992,10181,
+10371,10562,10754,10947,11140,11335,11530,11726,11923,12121,12319,12518,12718,12918,13119,13321,
+13522,13725,13928,14131,14335,14539,14744,14948,15153,15359,15564,15770,15976,16182,16388,16594};
+
+uint8_t amps[255] = {};
+	
+uint8_t flag = 0;
+uint16_t feed_rate = 5000;
+uint16_t X_period = 500;
+uint16_t Y_period = 500;
+uint32_t f = 1000000;
+int32_t X_e;
+int32_t Y_e;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -77,10 +141,113 @@ static void MX_TIM7_Init(void);
 static void MX_TIM8_Init(void);
 /* USER CODE BEGIN PFP */
 
+void X_driver(void)
+{		
+		if (X_dir == 1){
+				X_step_A++;
+				X_step_B++;
+				X_step_C++;
+				X_pos++;
+			
+				if (X_step_A >= 512) {X_step_A = 0;}
+				if (X_step_B >= 512) {X_step_B = 0;}
+				if (X_step_C >= 512) {X_step_C = 0;}
+		}
+		else {
+				X_step_A--;
+				X_step_B--;
+				X_step_C--;
+				X_pos--;
+			
+				if (X_step_A >= 512) {X_step_A = 511;}
+				if (X_step_B >= 512) {X_step_B = 511;}
+				if (X_step_C >= 512) {X_step_C = 511;}
+		}
+		
+		X_duty_A = sine_LookUp[X_step_A];
+		X_duty_B = sine_LookUp[X_step_B];
+		X_duty_C = sine_LookUp[X_step_C];
+	
+		if(X_period > 200){
+			if (X_period < 454){
+				X_duty_A = ((X_duty_A * amps[X_period - 200]) >> 8) - 1000;
+				X_duty_B = ((X_duty_B * amps[X_period - 200]) >> 8) - 1000;
+				X_duty_C = ((X_duty_C * amps[X_period - 200]) >> 8) - 1000;
+			}
+			else{
+				X_duty_A = ((X_duty_A * amps[253]) >> 8) - 1000;
+				X_duty_B = ((X_duty_B * amps[253]) >> 8) - 1000;
+				X_duty_C = ((X_duty_C * amps[253]) >> 8) - 1000;
+			}
+		}
+		if(X_duty_A < 10) { X_duty_A = 10; }
+		if(X_duty_B < 10) { X_duty_B = 10; }
+		if(X_duty_C < 10) { X_duty_C = 10; }
+		TIM1 -> CCR1 = X_duty_A;
+		TIM1 -> CCR2 = X_duty_B;
+		TIM1 -> CCR3 = X_duty_C;
+}
+
+void Y_driver(void)
+{
+		if (Y_dir == 1){
+				Y_step_A++;
+				Y_step_B++;
+				Y_step_C++;
+				Y_pos++;
+			
+				if (Y_step_A >= 512) {Y_step_A = 0;}
+				if (Y_step_B >= 512) {Y_step_B = 0;}
+				if (Y_step_C >= 512) {Y_step_C = 0;}
+		}
+		else {
+				Y_step_A--;
+				Y_step_B--;
+				Y_step_C--;
+				Y_pos--;
+			
+				if (Y_step_A >= 512) {Y_step_A = 511;}
+				if (Y_step_B >= 512) {Y_step_B = 511;}
+				if (Y_step_C >= 512) {Y_step_C = 511;}
+		}
+		
+		Y_duty_A = sine_LookUp[Y_step_A];
+		Y_duty_B = sine_LookUp[Y_step_B];
+		Y_duty_C = sine_LookUp[Y_step_C];
+		
+		if(Y_period > 200){
+			if (Y_period < 454){
+				Y_duty_A = (Y_duty_A * amps[Y_period - 200]) >> 8;
+				Y_duty_B = (Y_duty_B * amps[Y_period - 200]) >> 8;
+				Y_duty_C = (Y_duty_C * amps[Y_period - 200]) >> 8;
+			}
+			else{
+				Y_duty_A = (Y_duty_A * amps[253]) >> 8;
+				Y_duty_B = (Y_duty_B * amps[253]) >> 8;
+				Y_duty_C = (Y_duty_C * amps[253]) >> 8;
+			}	
+		}
+		if(Y_duty_A < 10) { Y_duty_A = 10; }
+		if(Y_duty_B < 10) { Y_duty_B = 10; }
+		if(Y_duty_C < 10) { Y_duty_C = 10; }
+		TIM8 -> CCR1 = Y_duty_A;
+		TIM8 -> CCR2 = Y_duty_B;
+		TIM8 -> CCR3 = Y_duty_C;
+}
+
+static inline void calculate_period(int32_t x, int32_t y)
+{
+	uint32_t fdt;
+	if(x < 0){ x*= -1;}
+	if(y < 0){ y*= -1;}
+	
+	fdt = f * sqrtf(x*x + y*y) / feed_rate;
+	X_period = fdt / x;
+	Y_period = fdt / y;
+}
 
 void send_message(uint8_t message)
 {
-	
 	TxD[0] = message;
 	HAL_UART_Transmit(&huart1, TxD, 1, 10); // send ready command
 	HAL_Delay(10);
@@ -98,10 +265,40 @@ void CNC_Init (void)
 	}
 }
 
+void CNC_Moving(uint32_t x, uint32_t y)
+{
+	X_e = x - X_pos; // x-axis deviation
+	Y_e = y - Y_pos; // y-axis deviation
+	calculate_period(X_e, Y_e);
+	
+	if(X_e < 0) { X_dir = 0; }
+	else { X_dir = 1; }
+	if(Y_e < 0) { Y_dir = 0; }
+	else { Y_dir = 1; }
+	
+	TIM6->ARR = X_period; // X_period
+	TIM7->ARR = Y_period; // Y_period
+	
+	if (X_e != 0) { TIM6->CR1 |= TIM_CR1_CEN; }	// enable tim6
+	if (Y_e != 0) { TIM7->CR1 |= TIM_CR1_CEN; }	// enable tim7
+	
+	while(X_e != 0 || Y_e != 0){  //  (X_e >= 5 || X_e <= -5 || Y_e >= 5 || Y_e <= -5)
+		X_e = x - X_pos; // x-axis deviation
+		Y_e = y - Y_pos; // y-axis deviation	
+		flag = 2;
+	}
+	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
+	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
+	HAL_Delay(50);
+	send_message('1');
+}
 
 
 uint8_t CNC_Frame(uint32_t x, uint32_t y){
 	HAL_Delay(500);
+	
+	
+	
 	//message = '1'; // ready-message
 	//HAL_UART_Transmit(&huart1, &message, 1, 10); // send ready command
 	send_message('1');
@@ -147,7 +344,8 @@ void CNC_Main(void)  // main CNC cycle
 					while ( HAL_UART_Receive(&huart1, coord, 6, 10) != HAL_OK ){}
 					y_coord = 100000*(coord[0]- '0') + 10000*(coord[1]- '0') + 1000*(coord[2]- '0') + 100*(coord[3]- '0') + 10*(coord[4]- '0') + (coord[5]- '0'); // write a x-coord variable
 						
-					CNC_Frame(x_coord, y_coord);
+					//CNC_Frame(x_coord, y_coord);
+					CNC_Moving(x_coord, y_coord);
 					break;
 						
 			case '0':
@@ -186,7 +384,13 @@ void CNC_Main(void)  // main CNC cycle
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	
+	int j = 254;
+	for (int i = 0; i<255; i++){ // massive amps genereation
+		amps[i] = j;
+		j--;
+	}
+	
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
