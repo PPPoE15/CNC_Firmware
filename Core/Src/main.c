@@ -62,8 +62,8 @@ message = '4' - program if completed
 message = '5' - error message
 */
 
-uint32_t x_coord;  
-uint32_t y_coord;
+int32_t x_coord;  
+int32_t y_coord;
 
 uint32_t X_duty_A;
 uint32_t X_duty_B;
@@ -82,8 +82,8 @@ uint16_t Y_step_C = 341;
 
 uint8_t X_dir = 1;
 uint8_t Y_dir = 1;
-uint32_t X_pos = 0;
-uint32_t Y_pos = 0;
+int32_t X_pos = 0;
+int32_t Y_pos = 0;
 
 uint16_t sine_LookUp[] = {
 		16800,17006,17212,17418,17624,17830,18036,18241,18447,18652,18856,19061,19265,19469,19672,19875,
@@ -237,7 +237,7 @@ void Y_driver(void)
 
 static inline void calculate_period(int32_t x, int32_t y)
 {
-	uint32_t fdt;
+	int32_t fdt;
 	if(x < 0){ x*= -1;}
 	if(y < 0){ y*= -1;}
 	
@@ -253,11 +253,62 @@ void send_message(uint8_t message)
 	HAL_Delay(10);
 }
 
+void Driver_Init(void)
+{
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1); // turn on complementary channel
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2); // turn on complementary channel
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3); // turn on complementary channel
+	
+	TIM6->DIER |= TIM_DIER_UIE; // enable interrupt from tim6
+	
+	
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+	HAL_TIMEx_PWMN_Start(&htim8, TIM_CHANNEL_1); // turn on complementary channel
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
+	HAL_TIMEx_PWMN_Start(&htim8, TIM_CHANNEL_2); // turn on complementary channel
+	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
+	HAL_TIMEx_PWMN_Start(&htim8, TIM_CHANNEL_3); // turn on complementary channel
+	
+	TIM7->DIER |= TIM_DIER_UIE; // enable interrupt from tim6
+
+	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
+	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
+}
+
+void Driver_DeInit(void)
+{
+	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
+	HAL_TIMEx_PWMN_Stop(&htim1, TIM_CHANNEL_1); // turn on complementary channel
+	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+	HAL_TIMEx_PWMN_Stop(&htim1, TIM_CHANNEL_2); // turn on complementary channel
+	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+	HAL_TIMEx_PWMN_Stop(&htim1, TIM_CHANNEL_3); // turn on complementary channel
+	
+	TIM6->DIER &= ~TIM_DIER_UIE; // enable interrupt from tim6
+	
+	
+	HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_1);
+	HAL_TIMEx_PWMN_Stop(&htim8, TIM_CHANNEL_1); // turn on complementary channel
+	HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_2);
+	HAL_TIMEx_PWMN_Stop(&htim8, TIM_CHANNEL_2); // turn on complementary channel
+	HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_3);
+	HAL_TIMEx_PWMN_Stop(&htim8, TIM_CHANNEL_3); // turn on complementary channel
+	
+	TIM7->DIER &= ~TIM_DIER_UIE; // enable interrupt from tim6
+
+	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
+	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
+}
+
 void CNC_Init (void)
 {
 	uint8_t request[1];  // ready-message
 	while ( HAL_UART_Receive(&huart1, request, 1, 10) != HAL_OK ){}  // waiting request from PC
 	if (request[0] == '1'){
+		//Driver_Init();
 		send_message('1');
 		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 		HAL_Delay(500);
@@ -265,7 +316,7 @@ void CNC_Init (void)
 	}
 }
 
-void CNC_Moving(uint32_t x, uint32_t y)
+void CNC_Moving(int32_t x, int32_t y)
 {
 	X_e = x - X_pos; // x-axis deviation
 	Y_e = y - Y_pos; // y-axis deviation
@@ -289,8 +340,9 @@ void CNC_Moving(uint32_t x, uint32_t y)
 	}
 	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
 	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
-	HAL_Delay(50);
+	//HAL_Delay(50);
 	send_message('1');
+	flag = 1;
 }
 
 
@@ -320,6 +372,7 @@ void compressor_off(void)
 void CNC_DeInit(void)
 {
 	compressor_off();
+	Driver_DeInit();
 }
 
 void CNC_Main(void)  // main CNC cycle
@@ -417,7 +470,9 @@ int main(void)
   MX_TIM7_Init();
   MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
-
+	Driver_Init();
+	X_pos = 0;
+	Y_pos = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -754,17 +809,17 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LED1_Pin|LED2_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pins : LED1_Pin LED2_Pin */
-  GPIO_InitStruct.Pin = LED1_Pin|LED2_Pin;
+  /*Configure GPIO pin : LED1_Pin */
+  GPIO_InitStruct.Pin = LED1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(LED1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Air_Pin */
   GPIO_InitStruct.Pin = Air_Pin;
