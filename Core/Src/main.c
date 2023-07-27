@@ -62,8 +62,8 @@ message = '4' - program if completed
 message = '5' - error message
 */
 
-int32_t x_coord;  
-int32_t y_coord;
+uint32_t x_coord;  
+uint32_t y_coord;
 
 uint32_t X_duty_A;
 uint32_t X_duty_B;
@@ -119,12 +119,12 @@ uint16_t sine_LookUp[] = {
 10371,10562,10754,10947,11140,11335,11530,11726,11923,12121,12319,12518,12718,12918,13119,13321,
 13522,13725,13928,14131,14335,14539,14744,14948,15153,15359,15564,15770,15976,16182,16388,16594};
 
-uint8_t amps[255] = {};
+
 	
 uint8_t flag = 0;
-uint16_t feed_rate = 5000;
-uint16_t X_period = 500;
-uint16_t Y_period = 500;
+uint32_t feed_rate = 5000;
+uint32_t X_period = 500;
+uint32_t Y_period = 500;
 uint32_t f = 1000000;
 int32_t X_e;
 int32_t Y_e;
@@ -163,26 +163,22 @@ void X_driver(void)
 				if (X_step_B >= 512) {X_step_B = 511;}
 				if (X_step_C >= 512) {X_step_C = 511;}
 		}
+			
+		if (X_step_A >= 512) {X_step_A = 0;}
+		if (X_step_B >= 512) {X_step_B = 0;}
+		if (X_step_C >= 512) {X_step_C = 0;}
 		
 		X_duty_A = sine_LookUp[X_step_A];
 		X_duty_B = sine_LookUp[X_step_B];
 		X_duty_C = sine_LookUp[X_step_C];
 	
-		if(X_period > 200){
-			if (X_period < 454){
-				X_duty_A = ((X_duty_A * amps[X_period - 200]) >> 8) - 1000;
-				X_duty_B = ((X_duty_B * amps[X_period - 200]) >> 8) - 1000;
-				X_duty_C = ((X_duty_C * amps[X_period - 200]) >> 8) - 1000;
-			}
-			else{
-				X_duty_A = ((X_duty_A * amps[253]) >> 8) - 1000;
-				X_duty_B = ((X_duty_B * amps[253]) >> 8) - 1000;
-				X_duty_C = ((X_duty_C * amps[253]) >> 8) - 1000;
-			}
-		}
-		if(X_duty_A < 10) { X_duty_A = 10; }
-		if(X_duty_B < 10) { X_duty_B = 10; }
-		if(X_duty_C < 10) { X_duty_C = 10; }
+		X_duty_A *= 100;
+		X_duty_A /= X_period;
+		X_duty_B *= 100;
+		X_duty_B /= X_period;
+		X_duty_C *= 100;
+		X_duty_C /= X_period;
+				
 		TIM1 -> CCR1 = X_duty_A;
 		TIM1 -> CCR2 = X_duty_B;
 		TIM1 -> CCR3 = X_duty_C;
@@ -215,21 +211,13 @@ void Y_driver(void)
 		Y_duty_B = sine_LookUp[Y_step_B];
 		Y_duty_C = sine_LookUp[Y_step_C];
 		
-		if(Y_period > 200){
-			if (Y_period < 454){
-				Y_duty_A = (Y_duty_A * amps[Y_period - 200]) >> 8;
-				Y_duty_B = (Y_duty_B * amps[Y_period - 200]) >> 8;
-				Y_duty_C = (Y_duty_C * amps[Y_period - 200]) >> 8;
-			}
-			else{
-				Y_duty_A = (Y_duty_A * amps[253]) >> 8;
-				Y_duty_B = (Y_duty_B * amps[253]) >> 8;
-				Y_duty_C = (Y_duty_C * amps[253]) >> 8;
-			}	
-		}
-		if(Y_duty_A < 10) { Y_duty_A = 10; }
-		if(Y_duty_B < 10) { Y_duty_B = 10; }
-		if(Y_duty_C < 10) { Y_duty_C = 10; }
+		Y_duty_A *= 150;
+		Y_duty_A /= Y_period;
+		Y_duty_B *= 150;
+		Y_duty_B /= Y_period;
+		Y_duty_C *= 150;
+		Y_duty_C /= Y_period;
+		
 		TIM8 -> CCR1 = Y_duty_A;
 		TIM8 -> CCR2 = Y_duty_B;
 		TIM8 -> CCR3 = Y_duty_C;
@@ -237,11 +225,11 @@ void Y_driver(void)
 
 static inline void calculate_period(int32_t x, int32_t y)
 {
-	int32_t fdt;
+	float fdt;
 	if(x < 0){ x*= -1;}
 	if(y < 0){ y*= -1;}
-	
-	fdt = f * sqrtf(x*x + y*y) / feed_rate;
+	fdt = hypot(x, y);
+	fdt = fdt * 1000000 / 5000; // fdt = f * sqrtf(x*x + y*y) / feed_rate;
 	X_period = fdt / x;
 	Y_period = fdt / y;
 }
@@ -250,7 +238,7 @@ void send_message(uint8_t message)
 {
 	TxD[0] = message;
 	HAL_UART_Transmit(&huart1, TxD, 1, 10); // send ready command
-	HAL_Delay(10);
+	//HAL_Delay(10);
 }
 
 void Driver_Init(void)
@@ -310,13 +298,14 @@ void CNC_Init (void)
 	if (request[0] == '1'){
 		//Driver_Init();
 		send_message('1');
-		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		//HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 		HAL_Delay(500);
-		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		//HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		Driver_Init();
 	}
 }
 
-void CNC_Moving(int32_t x, int32_t y)
+void CNC_Moving(uint32_t x, uint32_t y)
 {
 	X_e = x - X_pos; // x-axis deviation
 	Y_e = y - Y_pos; // y-axis deviation
@@ -415,6 +404,7 @@ void CNC_Main(void)  // main CNC cycle
 			
 			case '5':  // final of programm
 					send_message('4'); // program is completed
+					CNC_DeInit();
 					break;
 			
 			default:
@@ -438,11 +428,6 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	
-	int j = 254;
-	for (int i = 0; i<255; i++){ // massive amps genereation
-		amps[i] = j;
-		j--;
-	}
 	
   /* USER CODE END 1 */
 
@@ -470,7 +455,7 @@ int main(void)
   MX_TIM7_Init();
   MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
-	Driver_Init();
+	//Driver_Init();
 	X_pos = 0;
 	Y_pos = 0;
   /* USER CODE END 2 */
@@ -593,7 +578,7 @@ static void MX_TIM1_Init(void)
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.DeadTime = 50;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
@@ -742,7 +727,7 @@ static void MX_TIM8_Init(void)
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.DeadTime = 50;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
@@ -809,17 +794,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin : LED1_Pin */
-  GPIO_InitStruct.Pin = LED1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LED1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Air_Pin */
   GPIO_InitStruct.Pin = Air_Pin;
