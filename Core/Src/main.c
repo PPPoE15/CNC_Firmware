@@ -172,11 +172,11 @@ void X_driver(void)
 		X_duty_B = sine_LookUp[X_step_B];
 		X_duty_C = sine_LookUp[X_step_C];
 	
-		X_duty_A *= 100;
+		X_duty_A *= 50;
 		X_duty_A /= X_period;
-		X_duty_B *= 100;
+		X_duty_B *= 50;
 		X_duty_B /= X_period;
-		X_duty_C *= 100;
+		X_duty_C *= 50;
 		X_duty_C /= X_period;
 				
 		TIM1 -> CCR1 = X_duty_A;
@@ -211,11 +211,11 @@ void Y_driver(void)
 		Y_duty_B = sine_LookUp[Y_step_B];
 		Y_duty_C = sine_LookUp[Y_step_C];
 		
-		Y_duty_A *= 150;
+		Y_duty_A *= 75;
 		Y_duty_A /= Y_period;
-		Y_duty_B *= 150;
+		Y_duty_B *= 75;
 		Y_duty_B /= Y_period;
-		Y_duty_C *= 150;
+		Y_duty_C *= 75;
 		Y_duty_C /= Y_period;
 		
 		TIM8 -> CCR1 = Y_duty_A;

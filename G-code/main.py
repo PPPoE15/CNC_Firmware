@@ -7,18 +7,25 @@ buf = [[], [], []]
 ppm = 2048/10  # pulse per millimeter
 sleep = 0.1
 
+
 def rnd(num):
     return int(num + (0.5 if num > 0 else -0.5))
 
 
-with open('glue.gcode') as gcode:
+print('Enter the g-code file full path \n')
+path = input()
+print('Enter COM-port number \n')
+com_num = input()
+
+
+with open(path) as gcode:
     for line in gcode:
         line = line.strip()
         command = re.findall(r'[MG].?\d+.?\d+', line)
         command = str(command).strip("'[]'")
         buf[0].append(command)
 
-        x_coord = re.findall(r'X.?\d+.?\d+', line)
+        x_coord = re.findall(r'X+(\d*\.\d+|\d+)?', line)
         x_coord = str(x_coord).strip("'[GMXY]'")
         if x_coord != '':
             x_coord = rnd(float(x_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
@@ -28,7 +35,7 @@ with open('glue.gcode') as gcode:
 
         buf[1].append(x_coord)
 
-        y_coord = re.findall(r'Y.?\d+.?\d+', line)
+        y_coord = re.findall(r'Y+(\d*\.\d+|\d+)?', line)
         y_coord = str(y_coord).strip("'[GMXY]'")
         if y_coord != '':
             y_coord = rnd(float(y_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
@@ -37,16 +44,12 @@ with open('glue.gcode') as gcode:
             y_coord = bytes('{:0>6}'.format(y_coord), 'ascii')
         buf[2].append(y_coord)
 
-        # print(command)
-        # print(x_coord)
-        # print(y_coord)
-
-
+        print(command + str(x_coord)  + str(y_coord))
 
 print('parsing done')
 
 
-ser = serial.Serial('COM5', 115200)  # make connection with stm32
+ser = serial.Serial(com_num, 115200)  # make connection with stm32
 print('connected')
 time.sleep(sleep)
 
@@ -112,5 +115,9 @@ for i in range(len(buf[0])):
                 print('Ошибка! Неизвестная команда')
 
         print(int(i))
-        # print(buf[2][i])
-        # print(buf[2][i])
+        print('\n')
+
+
+
+
+time.sleep(5)
