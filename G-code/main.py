@@ -31,7 +31,8 @@ with open(path) as gcode:
             x_coord = rnd(float(x_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
         x_coord = str(x_coord)
         if len(x_coord) != 6:
-            x_coord = bytes('{:0>6}'.format(x_coord), 'ascii')
+            x_coord = '{:0>6}'.format(x_coord)
+        x_coord = bytes(x_coord, 'ascii')
 
         buf[1].append(x_coord)
 
@@ -41,7 +42,9 @@ with open(path) as gcode:
             y_coord = rnd(float(y_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
         y_coord = str(y_coord)
         if len(y_coord) != 6:
-            y_coord = bytes('{:0>6}'.format(y_coord), 'ascii')
+            y_coord = '{:0>6}'.format(y_coord)
+        y_coord = bytes(y_coord, 'ascii')
+
         buf[2].append(y_coord)
 
         print(command + str(x_coord)  + str(y_coord))
