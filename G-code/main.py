@@ -5,7 +5,7 @@ import time
 
 buf = [[], [], []]
 ppm = 2048/10  # pulse per millimeter
-sleep = 0.1
+sleep = 0.01
 
 
 def rnd(num):
@@ -59,66 +59,54 @@ time.sleep(sleep)
 ser.write(b'1')  # send status request
 time.sleep(sleep)
 print('send status request')
-
-for i in range(len(buf[0])):
-
-    if int(ser.read_until('1', 1)) == 1:  # wait for getting ready-message from STM
-        match buf[0][i]:
-            case "G21":
-                print('Режим работы в метрической системе')
-                ser.write(b'0')
-                time.sleep(sleep)
-
-            case "G90":
-                print('Задание абсолютных координат')
-                ser.write(b'0')
-                time.sleep(sleep)
-
-            case "G00":  # send 1
-                print('Холостой ход')
-
-                ser.write(b'1')
-                time.sleep(sleep)
-                if int(ser.read_until('2', 1)) == 2:
-                    ser.write(buf[1][i])  # send x-coord
+if int(ser.read_until('1', 1)) == 1:  # wait for getting ready-message from STM
+    for i in range(len(buf[0])):
+            match buf[0][i]:
+                case "G21":
+                    print(str(i) + ' Режим работы в метрической системе')
+                    ser.write(b'0123123123123')
+                    print('done')
                     time.sleep(sleep)
 
-                if int(ser.read_until('3', 1)) == 3:
-                    ser.write(buf[2][i])  # send y-coord
+                case "G90":
+                    print(str(i) + ' Задание абсолютных координат')
+                    ser.write(b'0000000000000')
                     time.sleep(sleep)
 
-            case "M09":  # send 2
-                print('Подача воздуха')
-                ser.write(b'2')
-                time.sleep(sleep)
-
-            case "G01":  # send 3
-                print('Рабочее перемещение')
-                ser.write(b'3')
-                time.sleep(sleep)
-                if int(ser.read_until('2', 1)) == 2:
-                    ser.write(buf[1][i])  # send x-coord
+                case "G00":  # send 1
+                    print(str(i) + ' Холостой ход')
+                    ser.write(b'1' + buf[1][i] + buf[2][i])  # send command + x-coord + y-coord
                     time.sleep(sleep)
 
-                if int(ser.read_until('3', 1)) == 3:
-                    ser.write(buf[2][i])  # send y-coord
+                case "M09":  # send 2
+                    print(str(i) + ' Подача воздуха')
+
+                    ser.write(b'2000000000000')
+
                     time.sleep(sleep)
 
-            case "M10":  # send 4
-                print('Прекращение подачи воздуха')
-                ser.write(b'4')
-                time.sleep(sleep)
+                case "G01":  # send 3
+                    print(str(i) + ' Рабочее перемещение')
+                    ser.write(b'3' + buf[1][i] + buf[2][i])  # send command + x-coord + y-coord
+                    time.sleep(sleep)
 
-            case "M02":  # send 5
-                print('Конец программы')
-                ser.write(b'5')
-                time.sleep(sleep)
+                case "M10":  # send 4
+                    print(str(i) + ' Прекращение подачи воздуха')
+                    ser.write(b'4000000000000')
+                    time.sleep(sleep)
 
-            case _:
-                print('Ошибка! Неизвестная команда')
+                case "M02":  # send 5
+                    print(str(i) + ' Конец программы')
+                    ser.write(b'5000000000000')
+                    time.sleep(sleep)
 
-        print(int(i))
-        print('\n')
+                case _:
+                    print(str(i) + ' Ошибка! Неизвестная команда')
+
+print('Loading is done!')
+
+
+
 
 
 

@@ -121,14 +121,22 @@ uint16_t sine_LookUp[] = {
 
 
 	
-uint8_t flag = 0;
-uint32_t feed_rate = 5000;
+uint8_t flag = 0; // useles
+uint32_t feed_rate = 5000; // dont use
 uint32_t X_period = 500;
 uint32_t Y_period = 500;
-uint32_t f = 1000000;
+uint32_t f = 1000000; // dont use
 int32_t X_e;
 int32_t Y_e;
 
+uint8_t command [5000];
+uint32_t X_buf [5000];
+uint32_t Y_buf [5000];
+uint16_t frame = 0;
+
+uint32_t cycles_count = 0;
+uint8_t ProgrammIsDone = 0;
+uint8_t LoadingIsDone = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -238,7 +246,6 @@ void send_message(uint8_t message)
 {
 	TxD[0] = message;
 	HAL_UART_Transmit(&huart1, TxD, 1, 10); // send ready command
-	//HAL_Delay(10);
 }
 
 void Driver_Init(void)
@@ -299,9 +306,9 @@ void CNC_Init (void)
 		//Driver_Init();
 		send_message('1');
 		//HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-		HAL_Delay(500);
+		HAL_Delay(10);
 		//HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-		Driver_Init();
+		//Driver_Init();
 	}
 }
 
@@ -325,23 +332,19 @@ void CNC_Moving(uint32_t x, uint32_t y)
 	while(X_e != 0 || Y_e != 0){  //  (X_e >= 5 || X_e <= -5 || Y_e >= 5 || Y_e <= -5)
 		X_e = x - X_pos; // x-axis deviation
 		Y_e = y - Y_pos; // y-axis deviation	
+		if (X_e == 0) { TIM6->CR1 &= ~TIM_CR1_CEN; }	// disable tim6
+		if (Y_e == 0) { TIM7->CR1 &= ~TIM_CR1_CEN; }	// disable tim7
 		flag = 2;
 	}
-	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
-	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
-	//HAL_Delay(50);
-	send_message('1');
+	
+	
+
 	flag = 1;
 }
 
 
 uint8_t CNC_Frame(uint32_t x, uint32_t y){
 	HAL_Delay(500);
-	
-	
-	
-	//message = '1'; // ready-message
-	//HAL_UART_Transmit(&huart1, &message, 1, 10); // send ready command
 	send_message('1');
 	return(1);
 }
@@ -364,53 +367,99 @@ void CNC_DeInit(void)
 	Driver_DeInit();
 }
 
-void CNC_Main(void)  // main CNC cycle
+void Gcode_Loader(void)  // main CNC cycle
 { 
 	uint8_t str[3];
-	uint8_t coord[6];	
+	uint8_t frame_data[13];	
 	
-	while (1)
+	while (LoadingIsDone == 0)
 	{	
-		while ( HAL_UART_Receive(&huart1, str, 1, 10) != HAL_OK ){} // waiting for command from PC
-			
-		current_command = str[0];
-
-		switch(current_command)
+		while ( HAL_UART_Receive(&huart1, frame_data, 13, 10) != HAL_OK ){} // waiting for command from PC
+		command[frame] = frame_data[0];
+		switch(frame_data[0])
 		{
 			case '1': case '3':  //  get a coordinate command (free or work moving) G00 = '1' / G01 = '3'
-					send_message('2');  // ready to get x-coord
-					while ( HAL_UART_Receive(&huart1, coord, 6, 10) != HAL_OK ){}
-					x_coord = 100000*(coord[0]- '0') + 10000*(coord[1]- '0') + 1000*(coord[2]- '0') + 100*(coord[3]- '0') + 10*(coord[4]- '0') + (coord[5]- '0'); // write a x-coord variable
-						
-					send_message('3'); // ready to get y-coord
-					while ( HAL_UART_Receive(&huart1, coord, 6, 10) != HAL_OK ){}
-					y_coord = 100000*(coord[0]- '0') + 10000*(coord[1]- '0') + 1000*(coord[2]- '0') + 100*(coord[3]- '0') + 10*(coord[4]- '0') + (coord[5]- '0'); // write a x-coord variable
-						
+					x_coord = 100000*(frame_data[1]- '0') + 10000*(frame_data[2]- '0') + 1000*(frame_data[3]- '0') + 100*(frame_data[4]- '0') + 10*(frame_data[5]- '0') + (frame_data[6]- '0'); // write a x-coord variable
+					X_buf [frame] = x_coord;
+					y_coord = 100000*(frame_data[7]- '0') + 10000*(frame_data[8]- '0') + 1000*(frame_data[9]- '0') + 100*(frame_data[10]- '0') + 10*(frame_data[11]- '0') + (frame_data[12]- '0'); // write a x-coord variable
+					Y_buf [frame] = y_coord;
+					
 					//CNC_Frame(x_coord, y_coord);
-					CNC_Moving(x_coord, y_coord);
+					//CNC_Moving(x_coord, y_coord);
+					//send_message('1'); // ready-message
 					break;
 						
 			case '0':
-					send_message('1'); // ready-message
+					//send_message('1'); // ready-message
+					break;
+
+			case '2':  // compressor on
+					// compressor_on();
+					//send_message('1'); // ready-message
+					break;
+			
+			case '4':  // compressor off
+					// compressor_off();
+					//send_message('1'); // ready-message
+					break;
+			
+			case '5':  // final of programm
+					LoadingIsDone = 1;
+					CNC_DeInit();
+					//send_message('4'); // program is completed
+					break;
+			
+			default:
+					//send_message('5'); // error
+					//CNC_DeInit();
+					break;
+		}
+		frame++;
+	}
+}
+
+void CNC_Main(void)  // main CNC cycle
+{ 
+	frame = 0;
+	Driver_Init();
+	while (ProgrammIsDone == 0)
+	{	
+		DWT->CYCCNT = 0; // Обнуляем счетчик
+		switch(command[frame])
+		{
+			case '1': case '3':  //  get a coordinate command (free or work moving) G00 = '1' / G01 = '3'
+					CNC_Moving(X_buf[frame], Y_buf[frame]);
+
+					break;
+						
+			case '0':
+					//send_message('1'); // ready-message
 					break;
 
 			case '2':  // compressor on
 					compressor_on();
+					//send_message('1'); // ready-message
 					break;
 			
 			case '4':  // compressor off
 					compressor_off();
+					//send_message('1'); // ready-message
 					break;
 			
 			case '5':  // final of programm
-					send_message('4'); // program is completed
+					
 					CNC_DeInit();
+					ProgrammIsDone = 1;
+					//send_message('4'); // program is completed
 					break;
 			
 			default:
 					send_message('5'); // error
+					CNC_DeInit();
 					break;
 		}
+		frame++;
+		cycles_count = DWT->CYCCNT; // Читаем счетчик тактов
 	}
 }
 /* USER CODE END PFP */
@@ -458,6 +507,8 @@ int main(void)
 	//Driver_Init();
 	X_pos = 0;
 	Y_pos = 0;
+	CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk; // ????????? TRACE
+	DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk; // ????????? ??????? ??????
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -465,6 +516,7 @@ int main(void)
   while (1)
   {
 		CNC_Init();
+		Gcode_Loader();
 		CNC_Main();
 		CNC_DeInit();
     /* USER CODE END WHILE */
