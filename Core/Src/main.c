@@ -134,7 +134,8 @@ uint32_t Y_period = 500;
 uint32_t f = 1000000; // dont use
 int32_t X_e;
 int32_t Y_e;
-
+uint8_t X_home;
+uint8_t Y_home;
 uint8_t command [buf_size];
 uint32_t X_buf [buf_size];
 uint32_t Y_buf [buf_size];
@@ -194,10 +195,10 @@ void X_driver(void)
 		X_duty_A *= X_factor;
 		X_duty_B *= X_factor;
 		X_duty_C *= X_factor;
-		if(X_period_buf[frame] <= 700){
-			X_duty_A /= X_period_buf[frame];
-			X_duty_B /= X_period_buf[frame];
-			X_duty_C /= X_period_buf[frame];
+		if(X_period <= 700){
+			X_duty_A /= X_period;
+			X_duty_B /= X_period;
+			X_duty_C /= X_period;
 		}
 		else{
 			X_duty_A /= 700;
@@ -240,10 +241,10 @@ void Y_driver(void)
 		Y_duty_A *= Y_factor;
 		Y_duty_B *= Y_factor;
 		Y_duty_C *= Y_factor;
-		if(Y_period_buf[frame] <= 700){
-			Y_duty_A /= Y_period_buf[frame];
-			Y_duty_B /= Y_period_buf[frame];
-			Y_duty_C /= Y_period_buf[frame];
+		if(Y_period <= 700){
+			Y_duty_A /= Y_period;
+			Y_duty_B /= Y_period;
+			Y_duty_C /= Y_period;
 		}
 		else{
 			Y_duty_A /= 700;
@@ -325,6 +326,44 @@ void Driver_DeInit(void)
 
 void CNC_Init (void)
 {
+	Driver_Init();
+	if( (GPIOE->IDR & (1 << 3)) != 0 ) { // high level GPIOE 3 - end of y
+			Y_home = 0; // not home
+		}	
+		else{ Y_home = 1; } // at home
+		if( (GPIOE->IDR & (1 << 2)) != 0 ) { // high level GPIOE 3 - end of x
+			X_home = 0; // not home
+		}	
+		else{ X_home = 1; } // at home
+		
+		X_dir = 0;
+		Y_dir = 0;
+		X_period = 300;
+		Y_period = 300;
+		TIM6->ARR = X_period; // X_period
+		TIM7->ARR = Y_period; // Y_period
+		if(X_home != 1) { TIM6->CR1 |= TIM_CR1_CEN; }
+		if(Y_home != 1) { TIM7->CR1 |= TIM_CR1_CEN; }
+		
+	while(X_home != 1 || Y_home != 1){
+		if( (GPIOE->IDR & (1 << 3)) != 0 ) { // high level GPIOE 3 - end of y
+			Y_home = 0; // not home
+		}	
+		else{ // at home
+			Y_home = 1;
+			TIM7->CR1 &= ~TIM_CR1_CEN;
+		}
+		
+		if( (GPIOE->IDR & (1 << 2)) != 0 ) { // high level GPIOE 3 - end of x
+			X_home = 0; // not home
+		}	
+		else{ // at home 
+			X_home = 1; 
+			TIM6->CR1 &= ~TIM_CR1_CEN;
+		}
+	}
+	Driver_DeInit();
+	
 	frame = 0;
 	X_pos = 0;
 	Y_pos = 0;
@@ -332,6 +371,7 @@ void CNC_Init (void)
 	ProgrammIsDone = 0;
 	LoadingIsDone = 0;
 	uint8_t request[1];  // ready-message
+	
 	while ( HAL_UART_Receive(&huart1, request, 1, 10) != HAL_OK ){}  // waiting request from PC
 	if (request[0] == '1'){
 		//Driver_Init();
@@ -357,8 +397,11 @@ void CNC_Moving(uint32_t x, uint32_t y)
 //	X_dir = X_dir_buf[frame];
 //	Y_dir = Y_dir_buf[frame];
 	
+	X_period = X_period_buf[frame];
+	Y_period = Y_period_buf[frame];
 	TIM6->ARR = X_period_buf[frame]; // X_period
 	TIM7->ARR = Y_period_buf[frame]; // Y_period
+	
 	
 	if (X_e != 0) { TIM6->CR1 |= TIM_CR1_CEN; }	// enable tim6
 	if (Y_e != 0) { TIM7->CR1 |= TIM_CR1_CEN; }	// enable tim7
@@ -888,7 +931,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : END_sense_X_Pin END_sense_Y_Pin */
   GPIO_InitStruct.Pin = END_sense_X_Pin|END_sense_Y_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Air_Pin */
