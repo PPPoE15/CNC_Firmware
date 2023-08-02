@@ -60,6 +60,10 @@ void Y_driver(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define END_sense_X_Pin GPIO_PIN_2
+#define END_sense_X_GPIO_Port GPIOE
+#define END_sense_Y_Pin GPIO_PIN_3
+#define END_sense_Y_GPIO_Port GPIOE
 #define Air_Pin GPIO_PIN_7
 #define Air_GPIO_Port GPIOB
 

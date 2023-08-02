@@ -31,7 +31,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define X_factor 60
+#define Y_factor 75
+#define buf_size 5000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -64,6 +66,8 @@ message = '5' - error message
 
 uint32_t x_coord;  
 uint32_t y_coord;
+uint32_t x_prev = 0;
+uint32_t y_prev = 0;
 
 uint32_t X_duty_A;
 uint32_t X_duty_B;
@@ -85,54 +89,60 @@ uint8_t Y_dir = 1;
 int32_t X_pos = 0;
 int32_t Y_pos = 0;
 
+
+
 uint16_t sine_LookUp[] = {
-		16800,17006,17212,17418,17624,17830,18036,18241,18447,18652,18856,19061,19265,19469,19672,19875,
-20078,20279,20481,20682,20882,21082,21281,21479,21677,21874,22070,22265,22460,22653,22846,23038,
-23229,23419,23608,23796,23983,24169,24353,24537,24719,24901,25081,25259,25437,25613,25788,25961,
-26134,26304,26474,26641,26808,26973,27136,27298,27458,27616,27773,27929,28082,28234,28384,28533,
-28679,28824,28967,29109,29248,29385,29521,29655,29787,29916,30044,30170,30294,30416,30535,30653,
-30769,30882,30994,31103,31210,31315,31417,31518,31616,31712,31806,31898,31987,32074,32159,32241,
-32321,32399,32474,32547,32618,32686,32752,32816,32877,32935,32991,33045,33097,33145,33192,33236,
-33277,33316,33353,33387,33418,33447,33474,33498,33519,33538,33554,33568,33580,33589,33595,33599,
-33600,33599,33595,33589,33580,33568,33554,33538,33519,33498,33474,33447,33418,33387,33353,33316,
-33277,33236,33192,33145,33097,33045,32991,32935,32877,32816,32752,32686,32618,32547,32474,32399,
-32321,32241,32159,32074,31987,31898,31806,31712,31616,31518,31417,31315,31210,31103,30994,30882,
-30769,30653,30535,30416,30294,30170,30044,29916,29787,29655,29521,29385,29248,29109,28967,28824,
-28679,28533,28384,28234,28082,27929,27773,27616,27458,27298,27136,26973,26808,26641,26474,26304,
-26134,25961,25788,25613,25437,25259,25081,24901,24719,24537,24353,24169,23983,23796,23608,23419,
-23229,23038,22846,22653,22460,22265,22070,21874,21677,21479,21281,21082,20882,20682,20481,20279,
-20078,19875,19672,19469,19265,19061,18856,18652,18447,18241,18036,17830,17624,17418,17212,17006,
-16800,16594,16388,16182,15976,15770,15564,15359,15153,14948,14744,14539,14335,14131,13928,13725,
-13522,13321,13119,12918,12718,12518,12319,12121,11923,11726,11530,11335,11140,10947,10754,10562,
-10371,10181,9992,9804,9617,9431,9247,9063,8881,8699,8519,8341,8163,7987,7812,7639,
-7466,7296,7126,6959,6792,6627,6464,6302,6142,5984,5827,5671,5518,5366,5216,5067,
-4921,4776,4633,4491,4352,4215,4079,3945,3813,3684,3556,3430,3306,3184,3065,2947,
-2831,2718,2606,2497,2390,2285,2183,2082,1984,1888,1794,1702,1613,1526,1441,1359,
-1279,1201,1126,1053,982,914,848,784,723,665,609,555,503,455,408,364,
-323,284,247,213,182,153,126,102,81,62,46,32,20,11,5,1,
-0,1,5,11,20,32,46,62,81,102,126,153,182,213,247,284,
-323,364,408,455,503,555,609,665,723,784,848,914,982,1053,1126,1201,
-1279,1359,1441,1526,1613,1702,1794,1888,1984,2082,2183,2285,2390,2497,2606,2718,
-2831,2947,3065,3184,3306,3430,3556,3684,3813,3945,4079,4215,4352,4491,4633,4776,
-4921,5067,5216,5366,5518,5671,5827,5984,6142,6302,6464,6627,6792,6959,7126,7296,
-7466,7639,7812,7987,8163,8341,8519,8699,8881,9063,9247,9431,9617,9804,9992,10181,
-10371,10562,10754,10947,11140,11335,11530,11726,11923,12121,12319,12518,12718,12918,13119,13321,
-13522,13725,13928,14131,14335,14539,14744,14948,15153,15359,15564,15770,15976,16182,16388,16594};
+		8400,8503,8606,8709,8812,8915,9018,9121,9223,9326,9428,9530,9633,9734,9836,9938,
+10039,10140,10240,10341,10441,10541,10640,10740,10838,10937,11035,11133,11230,11327,11423,11519,
+11615,11710,11804,11898,11991,12084,12177,12269,12360,12450,12540,12630,12718,12807,12894,12981,
+13067,13152,13237,13321,13404,13486,13568,13649,13729,13808,13887,13964,14041,14117,14192,14266,
+14340,14412,14484,14554,14624,14693,14761,14827,14893,14958,15022,15085,15147,15208,15268,15327,
+15384,15441,15497,15551,15605,15657,15709,15759,15808,15856,15903,15949,15994,16037,16079,16121,
+16161,16199,16237,16274,16309,16343,16376,16408,16438,16468,16496,16523,16548,16573,16596,16618,
+16639,16658,16676,16693,16709,16724,16737,16749,16760,16769,16777,16784,16790,16794,16797,16799,
+16800,16799,16797,16794,16790,16784,16777,16769,16760,16749,16737,16724,16709,16693,16676,16658,
+16639,16618,16596,16573,16548,16523,16496,16468,16438,16408,16376,16343,16309,16274,16237,16199,
+16161,16121,16079,16037,15994,15949,15903,15856,15808,15759,15709,15657,15605,15551,15497,15441,
+15384,15327,15268,15208,15147,15085,15022,14958,14893,14827,14761,14693,14624,14554,14484,14412,
+14340,14266,14192,14117,14041,13964,13887,13808,13729,13649,13568,13486,13404,13321,13237,13152,
+13067,12981,12894,12807,12718,12630,12540,12450,12360,12269,12177,12084,11991,11898,11804,11710,
+11615,11519,11423,11327,11230,11133,11035,10937,10838,10740,10640,10541,10441,10341,10240,10140,
+10039,9938,9836,9734,9633,9530,9428,9326,9223,9121,9018,8915,8812,8709,8606,8503,
+8400,8297,8194,8091,7988,7885,7782,7679,7577,7474,7372,7270,7167,7066,6964,6862,
+6761,6660,6560,6459,6359,6259,6160,6060,5962,5863,5765,5667,5570,5473,5377,5281,
+5185,5090,4996,4902,4809,4716,4623,4531,4440,4350,4260,4170,4082,3993,3906,3819,
+3733,3648,3563,3479,3396,3314,3232,3151,3071,2992,2913,2836,2759,2683,2608,2534,
+2460,2388,2316,2246,2176,2107,2039,1973,1907,1842,1778,1715,1653,1592,1532,1473,
+1416,1359,1303,1249,1195,1143,1091,1041,992,944,897,851,806,763,721,679,
+639,601,563,526,491,457,424,392,362,332,304,277,252,227,204,182,
+161,142,124,107,91,76,63,51,40,31,23,16,10,6,3,1,
+0,1,3,6,10,16,23,31,40,51,63,76,91,107,124,142,
+161,182,204,227,252,277,304,332,362,392,424,457,491,526,563,601,
+639,679,721,763,806,851,897,944,992,1041,1091,1143,1195,1249,1303,1359,
+1416,1473,1532,1592,1653,1715,1778,1842,1907,1973,2039,2107,2176,2246,2316,2388,
+2460,2534,2608,2683,2759,2836,2913,2992,3071,3151,3232,3314,3396,3479,3563,3648,
+3733,3819,3906,3993,4082,4170,4260,4350,4440,4531,4623,4716,4809,4902,4996,5090,
+5185,5281,5377,5473,5570,5667,5765,5863,5962,6060,6160,6259,6359,6459,6560,6660,
+6761,6862,6964,7066,7167,7270,7372,7474,7577,7679,7782,7885,7988,8091,8194,8297};
 
 
 	
 uint8_t flag = 0; // useles
-uint32_t feed_rate = 5000; // dont use
+uint32_t feed_rate = 3000; 
 uint32_t X_period = 500;
 uint32_t Y_period = 500;
 uint32_t f = 1000000; // dont use
 int32_t X_e;
 int32_t Y_e;
 
-uint8_t command [5000];
-uint32_t X_buf [5000];
-uint32_t Y_buf [5000];
+uint8_t command [buf_size];
+uint32_t X_buf [buf_size];
+uint32_t Y_buf [buf_size];
+uint16_t X_period_buf[buf_size];
+uint16_t Y_period_buf[buf_size];
 uint16_t frame = 0;
+uint8_t X_dir_buf[buf_size];
+uint8_t Y_dir_buf[buf_size];
 
 uint32_t cycles_count = 0;
 uint8_t ProgrammIsDone = 0;
@@ -179,13 +189,21 @@ void X_driver(void)
 		X_duty_A = sine_LookUp[X_step_A];
 		X_duty_B = sine_LookUp[X_step_B];
 		X_duty_C = sine_LookUp[X_step_C];
-	
-		X_duty_A *= 50;
-		X_duty_A /= X_period;
-		X_duty_B *= 50;
-		X_duty_B /= X_period;
-		X_duty_C *= 50;
-		X_duty_C /= X_period;
+		
+		
+		X_duty_A *= X_factor;
+		X_duty_B *= X_factor;
+		X_duty_C *= X_factor;
+		if(X_period_buf[frame] <= 700){
+			X_duty_A /= X_period_buf[frame];
+			X_duty_B /= X_period_buf[frame];
+			X_duty_C /= X_period_buf[frame];
+		}
+		else{
+			X_duty_A /= 700;
+			X_duty_B /= 700;
+			X_duty_C /= 700;
+		}
 				
 		TIM1 -> CCR1 = X_duty_A;
 		TIM1 -> CCR2 = X_duty_B;
@@ -219,12 +237,19 @@ void Y_driver(void)
 		Y_duty_B = sine_LookUp[Y_step_B];
 		Y_duty_C = sine_LookUp[Y_step_C];
 		
-		Y_duty_A *= 75;
-		Y_duty_A /= Y_period;
-		Y_duty_B *= 75;
-		Y_duty_B /= Y_period;
-		Y_duty_C *= 75;
-		Y_duty_C /= Y_period;
+		Y_duty_A *= Y_factor;
+		Y_duty_B *= Y_factor;
+		Y_duty_C *= Y_factor;
+		if(Y_period_buf[frame] <= 700){
+			Y_duty_A /= Y_period_buf[frame];
+			Y_duty_B /= Y_period_buf[frame];
+			Y_duty_C /= Y_period_buf[frame];
+		}
+		else{
+			Y_duty_A /= 700;
+			Y_duty_B /= 700;
+			Y_duty_C /= 700;
+		}
 		
 		TIM8 -> CCR1 = Y_duty_A;
 		TIM8 -> CCR2 = Y_duty_B;
@@ -237,7 +262,7 @@ static inline void calculate_period(int32_t x, int32_t y)
 	if(x < 0){ x*= -1;}
 	if(y < 0){ y*= -1;}
 	fdt = hypot(x, y);
-	fdt = fdt * 1000000 / 5000; // fdt = f * sqrtf(x*x + y*y) / feed_rate;
+	fdt = fdt * 1000000 / feed_rate; // fdt = f * sqrtf(x*x + y*y) / feed_rate;
 	X_period = fdt / x;
 	Y_period = fdt / y;
 }
@@ -267,7 +292,7 @@ void Driver_Init(void)
 	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
 	HAL_TIMEx_PWMN_Start(&htim8, TIM_CHANNEL_3); // turn on complementary channel
 	
-	TIM7->DIER |= TIM_DIER_UIE; // enable interrupt from tim6
+	TIM7->DIER |= TIM_DIER_UIE; // enable interrupt from tim7
 
 	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
 	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
@@ -300,6 +325,12 @@ void Driver_DeInit(void)
 
 void CNC_Init (void)
 {
+	frame = 0;
+	X_pos = 0;
+	Y_pos = 0;
+	flag = 0;
+	ProgrammIsDone = 0;
+	LoadingIsDone = 0;
 	uint8_t request[1];  // ready-message
 	while ( HAL_UART_Receive(&huart1, request, 1, 10) != HAL_OK ){}  // waiting request from PC
 	if (request[0] == '1'){
@@ -314,39 +345,34 @@ void CNC_Init (void)
 
 void CNC_Moving(uint32_t x, uint32_t y)
 {
+	
 	X_e = x - X_pos; // x-axis deviation
 	Y_e = y - Y_pos; // y-axis deviation
-	calculate_period(X_e, Y_e);
+	//calculate_period(X_e, Y_e);
 	
 	if(X_e < 0) { X_dir = 0; }
 	else { X_dir = 1; }
 	if(Y_e < 0) { Y_dir = 0; }
 	else { Y_dir = 1; }
+//	X_dir = X_dir_buf[frame];
+//	Y_dir = Y_dir_buf[frame];
 	
-	TIM6->ARR = X_period; // X_period
-	TIM7->ARR = Y_period; // Y_period
+	TIM6->ARR = X_period_buf[frame]; // X_period
+	TIM7->ARR = Y_period_buf[frame]; // Y_period
 	
 	if (X_e != 0) { TIM6->CR1 |= TIM_CR1_CEN; }	// enable tim6
 	if (Y_e != 0) { TIM7->CR1 |= TIM_CR1_CEN; }	// enable tim7
 	
+	
 	while(X_e != 0 || Y_e != 0){  //  (X_e >= 5 || X_e <= -5 || Y_e >= 5 || Y_e <= -5)
+		DWT->CYCCNT = 0; // Iaioeyai n?ao?ee
 		X_e = x - X_pos; // x-axis deviation
 		Y_e = y - Y_pos; // y-axis deviation	
 		if (X_e == 0) { TIM6->CR1 &= ~TIM_CR1_CEN; }	// disable tim6
 		if (Y_e == 0) { TIM7->CR1 &= ~TIM_CR1_CEN; }	// disable tim7
 		flag = 2;
+		cycles_count = DWT->CYCCNT; // ?eoaai n?ao?ee oaeoia
 	}
-	
-	
-
-	flag = 1;
-}
-
-
-uint8_t CNC_Frame(uint32_t x, uint32_t y){
-	HAL_Delay(500);
-	send_message('1');
-	return(1);
 }
 
 void compressor_on(void)
@@ -384,9 +410,19 @@ void Gcode_Loader(void)  // main CNC cycle
 					y_coord = 100000*(frame_data[7]- '0') + 10000*(frame_data[8]- '0') + 1000*(frame_data[9]- '0') + 100*(frame_data[10]- '0') + 10*(frame_data[11]- '0') + (frame_data[12]- '0'); // write a x-coord variable
 					Y_buf [frame] = y_coord;
 					
-					//CNC_Frame(x_coord, y_coord);
-					//CNC_Moving(x_coord, y_coord);
-					//send_message('1'); // ready-message
+					calculate_period(x_coord - x_prev,y_coord - y_prev);
+					X_period_buf[frame] = X_period;
+					Y_period_buf[frame] = Y_period;
+			
+//					if(x_coord - x_prev < 0) { X_dir = 0; }
+//					else { X_dir = 1; }
+//					if(y_coord - y_prev < 0) { Y_dir = 0; }
+//					else { Y_dir = 1; }
+//					X_dir_buf[frame] = X_dir;
+//					Y_dir_buf[frame] = Y_dir;
+					x_prev = x_coord;
+					y_prev = y_coord;
+					
 					break;
 						
 			case '0':
@@ -422,9 +458,10 @@ void CNC_Main(void)  // main CNC cycle
 { 
 	frame = 0;
 	Driver_Init();
+	HAL_Delay(100);
 	while (ProgrammIsDone == 0)
 	{	
-		DWT->CYCCNT = 0; // Обнуляем счетчик
+		
 		switch(command[frame])
 		{
 			case '1': case '3':  //  get a coordinate command (free or work moving) G00 = '1' / G01 = '3'
@@ -459,7 +496,7 @@ void CNC_Main(void)  // main CNC cycle
 					break;
 		}
 		frame++;
-		cycles_count = DWT->CYCCNT; // Читаем счетчик тактов
+		
 	}
 }
 /* USER CODE END PFP */
@@ -505,8 +542,6 @@ int main(void)
   MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
 	//Driver_Init();
-	X_pos = 0;
-	Y_pos = 0;
 	CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk; // ????????? TRACE
 	DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk; // ????????? ??????? ??????
   /* USER CODE END 2 */
@@ -515,7 +550,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	
 		CNC_Init();
+		
 		Gcode_Loader();
 		CNC_Main();
 		CNC_DeInit();
@@ -594,7 +631,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 33600;
+  htim1.Init.Period = 16800;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -743,7 +780,7 @@ static void MX_TIM8_Init(void)
   htim8.Instance = TIM8;
   htim8.Init.Prescaler = 0;
   htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim8.Init.Period = 33600;
+  htim8.Init.Period = 16800;
   htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim8.Init.RepetitionCounter = 0;
   htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -839,14 +876,20 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pins : END_sense_X_Pin END_sense_Y_Pin */
+  GPIO_InitStruct.Pin = END_sense_X_Pin|END_sense_Y_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Air_Pin */
   GPIO_InitStruct.Pin = Air_Pin;
