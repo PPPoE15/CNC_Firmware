@@ -129,6 +129,7 @@ uint16_t sine_LookUp[] = {
 	
 uint8_t flag = 0; // useles
 uint32_t feed_rate = 3000; 
+uint32_t free_speed = 7000;
 uint32_t X_period = 500;
 uint32_t Y_period = 500;
 uint32_t f = 1000000; // dont use
@@ -257,13 +258,13 @@ void Y_driver(void)
 		TIM8 -> CCR3 = Y_duty_C;
 }
 
-static inline void calculate_period(int32_t x, int32_t y)
+static inline void calculate_period(int32_t x, int32_t y, uint32_t speed)
 {
 	float fdt;
 	if(x < 0){ x*= -1;}
 	if(y < 0){ y*= -1;}
 	fdt = hypot(x, y);
-	fdt = fdt * 1000000 / feed_rate; // fdt = f * sqrtf(x*x + y*y) / feed_rate;
+	fdt = fdt * 1000000 / speed; // fdt = f * sqrtf(x*x + y*y) / feed_rate;
 	X_period = fdt / x;
 	Y_period = fdt / y;
 }
@@ -421,13 +422,13 @@ void CNC_Moving(uint32_t x, uint32_t y)
 void compressor_on(void)
 {
 	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_RESET);
-	send_message('1');  // ready-message
+	//send_message('1');  // ready-message
 }
 
 void compressor_off(void)
 {
 	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_SET);
-	send_message('1');  // ready-message
+	//send_message('1');  // ready-message
 }
 
 void CNC_DeInit(void)
@@ -447,13 +448,13 @@ void Gcode_Loader(void)  // main CNC cycle
 		command[frame] = frame_data[0];
 		switch(frame_data[0])
 		{
-			case '1': case '3':  //  get a coordinate command (free or work moving) G00 = '1' / G01 = '3'
+			case '1':  //  get a coordinate command (free or work moving) G00 = '1' / G01 = '3'
 					x_coord = 100000*(frame_data[1]- '0') + 10000*(frame_data[2]- '0') + 1000*(frame_data[3]- '0') + 100*(frame_data[4]- '0') + 10*(frame_data[5]- '0') + (frame_data[6]- '0'); // write a x-coord variable
 					X_buf [frame] = x_coord;
 					y_coord = 100000*(frame_data[7]- '0') + 10000*(frame_data[8]- '0') + 1000*(frame_data[9]- '0') + 100*(frame_data[10]- '0') + 10*(frame_data[11]- '0') + (frame_data[12]- '0'); // write a x-coord variable
 					Y_buf [frame] = y_coord;
 					
-					calculate_period(x_coord - x_prev,y_coord - y_prev);
+					calculate_period(x_coord - x_prev,y_coord - y_prev, free_speed);
 					X_period_buf[frame] = X_period;
 					Y_period_buf[frame] = Y_period;
 			
@@ -468,6 +469,25 @@ void Gcode_Loader(void)  // main CNC cycle
 					
 					break;
 						
+			case '3':
+					x_coord = 100000*(frame_data[1]- '0') + 10000*(frame_data[2]- '0') + 1000*(frame_data[3]- '0') + 100*(frame_data[4]- '0') + 10*(frame_data[5]- '0') + (frame_data[6]- '0'); // write a x-coord variable
+					X_buf [frame] = x_coord;
+					y_coord = 100000*(frame_data[7]- '0') + 10000*(frame_data[8]- '0') + 1000*(frame_data[9]- '0') + 100*(frame_data[10]- '0') + 10*(frame_data[11]- '0') + (frame_data[12]- '0'); // write a x-coord variable
+					Y_buf [frame] = y_coord;
+					
+					calculate_period(x_coord - x_prev,y_coord - y_prev, feed_rate);
+					X_period_buf[frame] = X_period;
+					Y_period_buf[frame] = Y_period;
+			
+//					if(x_coord - x_prev < 0) { X_dir = 0; }
+//					else { X_dir = 1; }
+//					if(y_coord - y_prev < 0) { Y_dir = 0; }
+//					else { Y_dir = 1; }
+//					X_dir_buf[frame] = X_dir;
+//					Y_dir_buf[frame] = Y_dir;
+					x_prev = x_coord;
+					y_prev = y_coord;
+					break;
 			case '0':
 					//send_message('1'); // ready-message
 					break;
@@ -530,7 +550,7 @@ void CNC_Main(void)  // main CNC cycle
 					
 					CNC_DeInit();
 					ProgrammIsDone = 1;
-					//send_message('4'); // program is completed
+					send_message('4'); // program is completed
 					break;
 			
 			default:

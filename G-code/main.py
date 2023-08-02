@@ -1,6 +1,7 @@
 import serial
 import re
 import time
+import os
 
 
 buf = [[], [], []]
@@ -112,3 +113,7 @@ print('Loading is done!')
 
 
 time.sleep(5)
+ser.read_until('4', 1)  # wait for getting ready-message from STM
+print("Программа выполнена")
+print("Нажмите enter для выхода")
+os.system("pause")
