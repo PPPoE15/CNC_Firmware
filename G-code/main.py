@@ -1,67 +1,83 @@
-import serial
 import re
 import time
 import os
-
+import PySimpleGUI as sg
+import serial
 
 buf = [[], [], []]
 ppm = 2048/10  # pulse per millimeter
 sleep = 0.01
 
-
 def rnd(num):
     return int(num + (0.5 if num > 0 else -0.5))
 
+layout = [
+    [sg.Text('Выберете файл, содержащий g-code:')],
+    [sg.Text('Путь:'), sg.InputText(), sg.FileBrowse('Выбрать')],
+    [sg.Submit('Загрузить')],
+    [sg.Text('Задайте скорость перемещения в мм/с')],
+    [sg.InputText()],
+    [sg.Submit('Загрузить')],
+    [sg.Text('Укажите номер COM-порта в формате "COMx"')],
+    [sg.InputText()],
+    [sg.Submit('Загрузить'), sg.Cancel('Отмена')],
+    [sg.Output(size=(40, 10))]
 
-print('Enter the g-code file full path \n')
-path = input()
-print('Enter COM-port number \n')
-com_num = input()
+]
+window = sg.Window('ЧПУ станок для нанесения герметика', layout)
+while True:                             # The Event Loop
+    event, values = window.read()
+    print(event, values) #debug
+    path = values[0]
+    speed = values[2]
+    #com_num = values[3]
+    #print(path)
+    #print(values[2])
 
+    with open(path) as gcode:
+        for line in gcode:
+            line = line.strip()
+            command = re.findall(r'[MG].?\d+.?\d+', line)
+            command = str(command).strip("'[]'")
+            buf[0].append(command)
 
-with open(path) as gcode:
-    for line in gcode:
-        line = line.strip()
-        command = re.findall(r'[MG].?\d+.?\d+', line)
-        command = str(command).strip("'[]'")
-        buf[0].append(command)
+            x_coord = re.findall(r'X+(\d*\.\d+|\d+)?', line)
+            x_coord = str(x_coord).strip("'[GMXY]'")
+            if x_coord != '':
+                x_coord = rnd(float(x_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
+            x_coord = str(x_coord)
+            if len(x_coord) != 6:
+                x_coord = '{:0>6}'.format(x_coord)
+            x_coord = bytes(x_coord, 'ascii')
 
-        x_coord = re.findall(r'X+(\d*\.\d+|\d+)?', line)
-        x_coord = str(x_coord).strip("'[GMXY]'")
-        if x_coord != '':
-            x_coord = rnd(float(x_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
-        x_coord = str(x_coord)
-        if len(x_coord) != 6:
-            x_coord = '{:0>6}'.format(x_coord)
-        x_coord = bytes(x_coord, 'ascii')
+            buf[1].append(x_coord)
 
-        buf[1].append(x_coord)
+            y_coord = re.findall(r'Y+(\d*\.\d+|\d+)?', line)
+            y_coord = str(y_coord).strip("'[GMXY]'")
+            if y_coord != '':
+                y_coord = rnd(float(y_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
+            y_coord = str(y_coord)
+            if len(y_coord) != 6:
+                y_coord = '{:0>6}'.format(y_coord)
+            y_coord = bytes(y_coord, 'ascii')
 
-        y_coord = re.findall(r'Y+(\d*\.\d+|\d+)?', line)
-        y_coord = str(y_coord).strip("'[GMXY]'")
-        if y_coord != '':
-            y_coord = rnd(float(y_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
-        y_coord = str(y_coord)
-        if len(y_coord) != 6:
-            y_coord = '{:0>6}'.format(y_coord)
-        y_coord = bytes(y_coord, 'ascii')
+            buf[2].append(y_coord)
 
-        buf[2].append(y_coord)
+            #print(command + str(x_coord) + str(y_coord))
+            print(line)
 
-        print(command + str(x_coord)  + str(y_coord))
+    print('parsing done')
 
-print('parsing done')
+    ser = serial.Serial(com_num, 115200)  # make connection with stm32
+    print(ser)
+    print('connected')
+    time.sleep(sleep)
 
-
-ser = serial.Serial(com_num, 115200)  # make connection with stm32
-print('connected')
-time.sleep(sleep)
-
-ser.write(b'1')  # send status request
-time.sleep(sleep)
-print('send status request')
-if int(ser.read_until('1', 1)) == 1:  # wait for getting ready-message from STM
-    for i in range(len(buf[0])):
+    ser.write(b'1')  # send status request
+    time.sleep(sleep)
+    print('send status request')
+    if int(ser.read_until('1', 1)) == 1:  # wait for getting ready-message from STM
+        for i in range(len(buf[0])):
             match buf[0][i]:
                 case "G21":
                     print(str(i) + ' Режим работы в метрической системе')
@@ -104,7 +120,14 @@ if int(ser.read_until('1', 1)) == 1:  # wait for getting ready-message from STM
                 case _:
                     print(str(i) + ' Ошибка! Неизвестная команда')
 
-print('Loading is done!')
+    print('Loading is done!')
+
+    time.sleep(5)
+    ser.read_until('4', 1)  # wait for getting ready-message from STM
+
+
+    if event in (None, 'Exit', 'Cancel'):
+        break
 
 
 
@@ -112,8 +135,17 @@ print('Loading is done!')
 
 
 
-time.sleep(5)
-ser.read_until('4', 1)  # wait for getting ready-message from STM
+
+  # print('Enter the g-code file full path \n')
+#path = input()
+#print('Enter COM-port number \n')
+#com_num = input()
+
+
+
+
+
+
 print("Программа выполнена")
 print("Нажмите enter для выхода")
 os.system("pause")
