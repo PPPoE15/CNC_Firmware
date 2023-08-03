@@ -14,13 +14,12 @@ def rnd(num):
 layout = [
     [sg.Text('Выберете файл, содержащий g-code:')],
     [sg.Text('Путь:'), sg.InputText(), sg.FileBrowse('Выбрать')],
-    [sg.Submit('Загрузить')],
     [sg.Text('Задайте скорость перемещения в мм/с')],
     [sg.InputText()],
-    [sg.Submit('Загрузить')],
     [sg.Text('Укажите номер COM-порта в формате "COMx"')],
     [sg.InputText()],
     [sg.Submit('Загрузить'), sg.Cancel('Отмена')],
+    [sg.Button('Просмотреть')],
     [sg.Output(size=(40, 10))]
 
 ]
@@ -29,45 +28,54 @@ while True:                             # The Event Loop
     event, values = window.read()
     print(event, values) #debug
     path = values[0]
-    speed = values[2]
-    #com_num = values[3]
+    speed = values[1]
+    com_num = values[2]
     #print(path)
     #print(values[2])
+    if event == 'Просмотреть':
+        with open(path) as gcode:
+            for line in gcode:
+                line = line.strip()
+                command = re.findall(r'[MG].?\d+.?\d+', line)
+                command = str(command).strip("'[]'")
+                buf[0].append(command)
 
-    with open(path) as gcode:
-        for line in gcode:
-            line = line.strip()
-            command = re.findall(r'[MG].?\d+.?\d+', line)
-            command = str(command).strip("'[]'")
-            buf[0].append(command)
+                x_coord = re.findall(r'X+(\d*\.\d+|\d+)?', line)
+                x_coord = str(x_coord).strip("'[GMXY]'")
+                if x_coord != '':
+                    x_coord = rnd(float(x_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
+                x_coord = str(x_coord)
+                if len(x_coord) != 6:
+                    x_coord = '{:0>6}'.format(x_coord)
+                x_coord = bytes(x_coord, 'ascii')
 
-            x_coord = re.findall(r'X+(\d*\.\d+|\d+)?', line)
-            x_coord = str(x_coord).strip("'[GMXY]'")
-            if x_coord != '':
-                x_coord = rnd(float(x_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
-            x_coord = str(x_coord)
-            if len(x_coord) != 6:
-                x_coord = '{:0>6}'.format(x_coord)
-            x_coord = bytes(x_coord, 'ascii')
+                buf[1].append(x_coord)
 
-            buf[1].append(x_coord)
+                y_coord = re.findall(r'Y+(\d*\.\d+|\d+)?', line)
+                y_coord = str(y_coord).strip("'[GMXY]'")
+                if y_coord != '':
+                    y_coord = rnd(float(y_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
+                y_coord = str(y_coord)
+                if len(y_coord) != 6:
+                    y_coord = '{:0>6}'.format(y_coord)
+                y_coord = bytes(y_coord, 'ascii')
 
-            y_coord = re.findall(r'Y+(\d*\.\d+|\d+)?', line)
-            y_coord = str(y_coord).strip("'[GMXY]'")
-            if y_coord != '':
-                y_coord = rnd(float(y_coord) * ppm)  # conv to float + conv from millimeters to num of pulses + rounded
-            y_coord = str(y_coord)
-            if len(y_coord) != 6:
-                y_coord = '{:0>6}'.format(y_coord)
-            y_coord = bytes(y_coord, 'ascii')
+                buf[2].append(y_coord)
 
-            buf[2].append(y_coord)
-
-            #print(command + str(x_coord) + str(y_coord))
-            print(line)
+                #print(command + str(x_coord) + str(y_coord))
+                print(line)
 
     print('parsing done')
 
+    ser = serial.Serial(com_num, 115200)  # make connection with stm32
+    print(ser)
+    print('connected')
+    time.sleep(sleep)
+
+    if event in (None, 'Exit', 'Cancel'):
+        break
+
+'''
     ser = serial.Serial(com_num, 115200)  # make connection with stm32
     print(ser)
     print('connected')
@@ -124,10 +132,9 @@ while True:                             # The Event Loop
 
     time.sleep(5)
     ser.read_until('4', 1)  # wait for getting ready-message from STM
+'''
 
 
-    if event in (None, 'Exit', 'Cancel'):
-        break
 
 
 
@@ -145,7 +152,8 @@ while True:                             # The Event Loop
 
 
 
-
+'''
 print("Программа выполнена")
 print("Нажмите enter для выхода")
 os.system("pause")
+'''
