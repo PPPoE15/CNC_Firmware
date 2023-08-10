@@ -4,7 +4,7 @@ import PySimpleGUI as sg
 import serial
 
 buf = [[], [], []]
-ppm = 2048/10  # pulse per millimeter
+ppm = 320  # pulse per millimeter 360 Deg / 1.8 DegPerRound / 10 mmPerRound * 16 MicrostepsPerStep
 sleep = 0.01
 text_info = 'Инструкция:\n' \
             '0. Включаем все оборудование и подключаем контроллер к ПК\n' \
