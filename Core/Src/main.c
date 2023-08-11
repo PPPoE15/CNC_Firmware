@@ -84,8 +84,8 @@ uint32_t Y_period = 500;
 uint32_t f = 1000000; // dont use
 int32_t X_e;
 int32_t Y_e;
-uint8_t X_home;
-uint8_t Y_home;
+uint8_t X_home = 1;
+uint8_t Y_home = 1;
 uint8_t command [buf_size];
 uint32_t X_buf [buf_size];
 uint32_t Y_buf [buf_size];
@@ -178,12 +178,15 @@ void send_message(uint8_t message)
 
 void Driver_Init(void)
 {
-	TIM6->DIER |= TIM_DIER_UIE; // enable interrupt from tim6
-	TIM7->DIER |= TIM_DIER_UIE; // enable interrupt from tim7
-	TIM10->DIER |= TIM_DIER_UIE; // enable interrupt from tim10
-	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
-	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
-	TIM10->CR1 &= ~TIM_CR1_CEN;	// disable tim10
+	__NVIC_EnableIRQ(TIM6_DAC_IRQn); // enable interrupt from tim6
+	__NVIC_EnableIRQ(TIM7_IRQn); // enable interrupt from tim7
+	//__NVIC_EnableIRQ(TIM10_IRQn); // enable interrupt from tim10 
+	TIM6->CR1 &= ~TIM_CR1_CEN;
+	TIM7->CR1 &= ~TIM_CR1_CEN;
+	TIM10->CR1 &= ~TIM_CR1_CEN;
+//	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
+//	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
+//	TIM10->CR1 &= ~TIM_CR1_CEN;	// disable tim10
 	GPIOB->ODR |= (1 << 0); // enable stepper driver
 }
 
@@ -214,8 +217,8 @@ void CNC_FreeMoving(uint32_t x, uint32_t y)
 	TIM7->ARR = Y_period; // Y_period
 	
 	
-	if (X_e != 0) { TIM6->CR1 |= TIM_CR1_CEN; }	// enable tim6
-	if (Y_e != 0) { TIM7->CR1 |= TIM_CR1_CEN; }	// enable tim7
+	if (X_e != 0) { TIM6->CR1 |= 0x01; }	// enable tim6
+	if (Y_e != 0) { TIM7->CR1 |= 0x01; }	// enable tim7
 	
 	
 	while(X_e != 0 || Y_e != 0){  //  (X_e >= 5 || X_e <= -5 || Y_e >= 5 || Y_e <= -5)
@@ -231,14 +234,14 @@ void CNC_FreeMoving(uint32_t x, uint32_t y)
 void CNC_Init (void)
 {
 	Driver_Init();
-	if( (GPIOB->IDR & (1 << 5)) != 0 ) { // high level GPIOE 3 - end of y
-			Y_home = 0; // not home
-		}	
-		else{ Y_home = 1; } // at home
-		if( (GPIOB->IDR & (1 << 6)) != 0 ) { // high level GPIOE 3 - end of x
-			X_home = 0; // not home
-		}	
-		else{ X_home = 1; } // at home
+//	if( (GPIOB->IDR & (1 << 5)) != 0 ) { // high level GPIOE 3 - end of y
+//			Y_home = 0; // not home
+//		}	
+//		else{ Y_home = 1; } // at home
+//		if( (GPIOB->IDR & (1 << 6)) != 0 ) { // high level GPIOE 3 - end of x
+//			X_home = 0; // not home
+//		}	
+//		else{ X_home = 1; } // at home
 		
 		X_dir = 0;
 		Y_dir = 0;
@@ -266,7 +269,7 @@ void CNC_Init (void)
 			TIM6->CR1 &= ~TIM_CR1_CEN;
 		}
 	}
-	
+	flag = 3;
 	HAL_Delay(500);
 	
 	frame = 0;
@@ -308,8 +311,8 @@ void CNC_Moving(uint32_t x, uint32_t y)
 	
 	X_period = X_period_buf[frame];
 	Y_period = Y_period_buf[frame];
-	TIM6->ARR = X_period_buf[frame]; // X_period
-	TIM7->ARR = Y_period_buf[frame]; // Y_period
+	TIM6->ARR = X_period; // X_period
+	TIM7->ARR = Y_period; // Y_period
 	
 	
 	if (X_e != 0) { TIM6->CR1 |= TIM_CR1_CEN; }	// enable tim6
