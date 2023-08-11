@@ -49,21 +49,28 @@ extern "C" {
 
 /* USER CODE END EM */
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-void X_driver(void);
-void Y_driver(void);
+
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define END_sense_X_Pin GPIO_PIN_2
-#define END_sense_X_GPIO_Port GPIOE
-#define END_sense_Y_Pin GPIO_PIN_3
-#define END_sense_Y_GPIO_Port GPIOE
+#define stepX_Pin GPIO_PIN_4
+#define stepX_GPIO_Port GPIOA
+#define stepY_Pin GPIO_PIN_5
+#define stepY_GPIO_Port GPIOA
+#define stepZ_Pin GPIO_PIN_6
+#define stepZ_GPIO_Port GPIOA
+#define DirX_Pin GPIO_PIN_7
+#define DirX_GPIO_Port GPIOA
+#define DirY_Pin GPIO_PIN_4
+#define DirY_GPIO_Port GPIOC
+#define DirZ_Pin GPIO_PIN_5
+#define DirZ_GPIO_Port GPIOC
+#define Enable_Pin GPIO_PIN_0
+#define Enable_GPIO_Port GPIOB
 #define Air_Pin GPIO_PIN_7
 #define Air_GPIO_Port GPIOB
 
