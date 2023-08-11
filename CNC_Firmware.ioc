@@ -3,7 +3,7 @@ CAD.formats=
 CAD.pinconfig=
 CAD.provider=
 File.Version=6
-GPIO.groupedBy=Group By Peripherals
+GPIO.groupedBy=
 KeepUserPlacement=false
 Mcu.CPN=STM32F407VET6
 Mcu.Family=STM32F4
@@ -22,6 +22,7 @@ Mcu.Pin1=PH1-OSC_OUT
 Mcu.Pin10=PA10
 Mcu.Pin11=PA13
 Mcu.Pin12=PA14
+<<<<<<< HEAD
 Mcu.Pin13=PB3
 Mcu.Pin14=PB5
 Mcu.Pin15=PB6
@@ -31,6 +32,14 @@ Mcu.Pin18=VP_TIM6_VS_ClockSourceINT
 Mcu.Pin19=VP_TIM7_VS_ClockSourceINT
 Mcu.Pin2=PA4
 Mcu.Pin20=VP_TIM10_VS_ClockSourceINT
+=======
+Mcu.Pin13=PB7
+Mcu.Pin14=VP_SYS_VS_Systick
+Mcu.Pin15=VP_TIM6_VS_ClockSourceINT
+Mcu.Pin16=VP_TIM7_VS_ClockSourceINT
+Mcu.Pin17=VP_TIM10_VS_ClockSourceINT
+Mcu.Pin2=PA4
+>>>>>>> 1f7927fa3242afaf79d86d3b0a9f3e2ba898adbf
 Mcu.Pin3=PA5
 Mcu.Pin4=PA6
 Mcu.Pin5=PA7
@@ -38,7 +47,11 @@ Mcu.Pin6=PC4
 Mcu.Pin7=PC5
 Mcu.Pin8=PB0
 Mcu.Pin9=PA9
+<<<<<<< HEAD
 Mcu.PinsNb=21
+=======
+Mcu.PinsNb=18
+>>>>>>> 1f7927fa3242afaf79d86d3b0a9f3e2ba898adbf
 Mcu.ThirdPartyNb=0
 Mcu.UserConstants=
 Mcu.UserName=STM32F407VETx
@@ -56,8 +69,13 @@ NVIC.PriorityGroup=NVIC_PRIORITYGROUP_4
 NVIC.SVCall_IRQn=true\:0\:0\:false\:false\:true\:false\:false\:false
 NVIC.SysTick_IRQn=true\:15\:0\:false\:false\:true\:false\:true\:false
 NVIC.TIM1_UP_TIM10_IRQn=true\:0\:0\:false\:false\:true\:true\:true\:true
+<<<<<<< HEAD
 NVIC.TIM6_DAC_IRQn=true\:0\:0\:true\:false\:true\:true\:true\:true
 NVIC.TIM7_IRQn=true\:0\:0\:true\:false\:true\:true\:true\:true
+=======
+NVIC.TIM6_DAC_IRQn=true\:0\:0\:false\:false\:true\:true\:true\:true
+NVIC.TIM7_IRQn=true\:0\:0\:false\:false\:true\:true\:true\:true
+>>>>>>> 1f7927fa3242afaf79d86d3b0a9f3e2ba898adbf
 NVIC.USART1_IRQn=true\:0\:0\:false\:false\:true\:true\:true\:true
 NVIC.UsageFault_IRQn=true\:0\:0\:false\:false\:true\:false\:false\:false
 PA10.Mode=Asynchronous
@@ -88,6 +106,7 @@ PB0.GPIOParameters=GPIO_Label
 PB0.GPIO_Label=Enable
 PB0.Locked=true
 PB0.Signal=GPIO_Output
+<<<<<<< HEAD
 PB3.GPIOParameters=GPIO_PuPd,GPIO_Label,GPIO_ModeDefaultEXTI
 PB3.GPIO_Label=E_stop
 PB3.GPIO_ModeDefaultEXTI=GPIO_MODE_IT_FALLING
@@ -104,6 +123,8 @@ PB6.GPIO_Label=END_sense_X
 PB6.GPIO_PuPd=GPIO_PULLDOWN
 PB6.Locked=true
 PB6.Signal=GPIO_Input
+=======
+>>>>>>> 1f7927fa3242afaf79d86d3b0a9f3e2ba898adbf
 PB7.GPIOParameters=PinState,GPIO_Label
 PB7.GPIO_Label=Air
 PB7.Locked=true
@@ -134,7 +155,7 @@ ProjectManager.DeviceId=STM32F407VETx
 ProjectManager.FirmwarePackage=STM32Cube FW_F4 V1.27.1
 ProjectManager.FreePins=false
 ProjectManager.HalAssertFull=false
-ProjectManager.HeapSize=0x400
+ProjectManager.HeapSize=0x200
 ProjectManager.KeepUserCode=true
 ProjectManager.LastFirmware=true
 ProjectManager.LibraryCopy=0
@@ -146,11 +167,15 @@ ProjectManager.ProjectFileName=CNC_Firmware.ioc
 ProjectManager.ProjectName=CNC_Firmware
 ProjectManager.ProjectStructure=
 ProjectManager.RegisterCallBack=
-ProjectManager.StackSize=0x800
+ProjectManager.StackSize=0x400
 ProjectManager.TargetToolchain=MDK-ARM V5.32
 ProjectManager.ToolChainLocation=
 ProjectManager.UnderRoot=false
+<<<<<<< HEAD
 ProjectManager.functionlistsort=1-SystemClock_Config-RCC-false-HAL-false,2-MX_GPIO_Init-GPIO-false-HAL-true,3-MX_USART1_UART_Init-USART1-false-HAL-true,4-MX_TIM6_Init-TIM6-false-HAL-true,5-MX_TIM7_Init-TIM7-false-HAL-true,6-MX_TIM10_Init-TIM10-false-HAL-true
+=======
+ProjectManager.functionlistsort=1-SystemClock_Config-RCC-false-HAL-false
+>>>>>>> 1f7927fa3242afaf79d86d3b0a9f3e2ba898adbf
 RCC.48MHZClocksFreq_Value=84000000
 RCC.AHBFreq_Value=168000000
 RCC.APB1CLKDivider=RCC_HCLK_DIV4
@@ -183,8 +208,11 @@ RCC.VCOI2SOutputFreq_Value=384000000
 RCC.VCOInputFreq_Value=2000000
 RCC.VCOOutputFreq_Value=336000000
 RCC.VcooutputI2S=192000000
+<<<<<<< HEAD
 SH.GPXTI3.0=GPIO_EXTI3
 SH.GPXTI3.ConfNb=1
+=======
+>>>>>>> 1f7927fa3242afaf79d86d3b0a9f3e2ba898adbf
 TIM10.IPParameters=Prescaler,Period
 TIM10.Period=500
 TIM10.Prescaler=83
@@ -194,9 +222,13 @@ TIM6.Prescaler=83
 TIM7.IPParameters=Prescaler,Period
 TIM7.Period=500
 TIM7.Prescaler=83
+<<<<<<< HEAD
 USART1.BaudRate=115200
 USART1.IPParameters=VirtualMode,OverSampling,BaudRate
 USART1.OverSampling=UART_OVERSAMPLING_16
+=======
+USART1.IPParameters=VirtualMode
+>>>>>>> 1f7927fa3242afaf79d86d3b0a9f3e2ba898adbf
 USART1.VirtualMode=VM_ASYNC
 VP_SYS_VS_Systick.Mode=SysTick
 VP_SYS_VS_Systick.Signal=SYS_VS_Systick

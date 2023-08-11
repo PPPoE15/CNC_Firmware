@@ -31,8 +31,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define X_factor 60
-#define Y_factor 75
 #define buf_size 5000
 /* USER CODE END PD */
 
@@ -68,14 +66,13 @@ uint32_t y_coord;
 uint32_t x_prev = 0;
 uint32_t y_prev = 0;
 
-
 uint8_t X_dir = 1;
 uint8_t Y_dir = 1;
 uint8_t Z_dir = 1;
 int32_t X_pos = 0;
 int32_t Y_pos = 0;
 int32_t Z_pos = 0;
-
+	
 uint8_t flag = 0; // useles
 uint32_t feed_rate = 3000; 
 uint32_t free_speed = 7000;
@@ -84,8 +81,8 @@ uint32_t Y_period = 500;
 uint32_t f = 1000000; // dont use
 int32_t X_e;
 int32_t Y_e;
-uint8_t X_home = 1;
-uint8_t Y_home = 1;
+uint8_t X_home;
+uint8_t Y_home;
 uint8_t command [buf_size];
 uint32_t X_buf [buf_size];
 uint32_t Y_buf [buf_size];
@@ -98,30 +95,39 @@ uint8_t Y_dir_buf[buf_size];
 uint32_t cycles_count = 0;
 uint8_t ProgrammIsDone = 0;
 uint8_t LoadingIsDone = 0;
-uint8_t IsEmerg = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_TIM6_Init(void);
 static void MX_TIM7_Init(void);
 static void MX_TIM10_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
+
+void compressor_on(void)
+{
+	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_RESET);
+	//send_message('1');  // ready-message
+}
+
+void compressor_off(void)
+{
+	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_SET);
+	//send_message('1');  // ready-message
+}
 
 void X_driver(void)
 {		
 		if (X_dir == 1){
-				GPIOA->ODR |= (1<<7); //dirX
 				X_pos++;
 		}
 		else {
-				GPIOA->ODR &= ~(1<<7);
 				X_pos--;
-
 		}
-
+		
 		GPIOA->ODR |= (1<<4); //stepX
 		HAL_Delay(1);
 		GPIOA->ODR &= ~(1<<4);
@@ -129,12 +135,10 @@ void X_driver(void)
 
 void Y_driver(void)
 {
-		if (X_dir == 1){
-			GPIOC->ODR |= (1<<4); //dirY
+		if (Y_dir == 1){
 			Y_pos++;
 		}
 		else {
-			GPIOC->ODR &= ~(1<<4);
 			Y_pos--;
 		}
 
@@ -146,11 +150,9 @@ void Y_driver(void)
 void Z_driver(void)
 {
 		if (Z_dir == 1){
-			GPIOC->ODR |= (1<<5); //dirZ
 			Z_pos++;
 		}
 		else {
-			GPIOC->ODR &= ~(1<<5);
 			Z_pos--;
 		}
 
@@ -178,27 +180,24 @@ void send_message(uint8_t message)
 
 void Driver_Init(void)
 {
-	__NVIC_EnableIRQ(TIM6_DAC_IRQn); // enable interrupt from tim6
-	__NVIC_EnableIRQ(TIM7_IRQn); // enable interrupt from tim7
-	//__NVIC_EnableIRQ(TIM10_IRQn); // enable interrupt from tim10 
-	TIM6->CR1 &= ~TIM_CR1_CEN;
-	TIM7->CR1 &= ~TIM_CR1_CEN;
-	TIM10->CR1 &= ~TIM_CR1_CEN;
-//	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
-//	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
-//	TIM10->CR1 &= ~TIM_CR1_CEN;	// disable tim10
+	TIM6 ->DIER |= TIM_DIER_UIE; // enable interrupt from tim6
+	TIM7 ->DIER |= TIM_DIER_UIE; // enable interrupt from tim7
+	//TIM10->DIER |= TIM_DIER_UIE; // enable interrupt from tim10
 	GPIOB->ODR |= (1 << 0); // enable stepper driver
+	TIM6 ->CR1 &= ~TIM_CR1_CEN;	// disable tim6
+	TIM7 ->CR1 &= ~TIM_CR1_CEN;	// disable tim7
+	//TIM10->CR1 &= ~TIM_CR1_CEN;	// disable tim10
 }
 
 void Driver_DeInit(void)
 {
-	TIM6->DIER &= ~TIM_DIER_UIE; // enable interrupt from tim6	
-	TIM7->DIER &= ~TIM_DIER_UIE; // enable interrupt from tim7
-	TIM10->DIER &= ~TIM_DIER_UIE; // enable interrupt from tim10
+	TIM6 ->DIER &= ~TIM_DIER_UIE; // disable interrupt from tim6	
+	TIM7 ->DIER &= ~TIM_DIER_UIE; // disable interrupt from tim7
+	TIM10->DIER &= ~TIM_DIER_UIE; // disable interrupt from tim10
+	GPIOB->ODR &= ~(1 << 0); // disable stepper driver
 	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
 	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
 	TIM10->CR1 &= ~TIM_CR1_CEN;	// disable tim10
-	GPIOB->ODR &= ~(1 << 0); // disable stepper driver
 }
 
 void CNC_FreeMoving(uint32_t x, uint32_t y)
@@ -208,109 +207,23 @@ void CNC_FreeMoving(uint32_t x, uint32_t y)
 	Y_e = y - Y_pos; // y-axis deviation
 	calculate_period(X_e, Y_e, free_speed);
 	
-	if(X_e < 0) { X_dir = 0; }
-	else { X_dir = 1; }
-	if(Y_e < 0) { Y_dir = 0; }
-	else { Y_dir = 1; }
-
-	TIM6->ARR = X_period; // X_period
-	TIM7->ARR = Y_period; // Y_period
-	
-	
-	if (X_e != 0) { TIM6->CR1 |= 0x01; }	// enable tim6
-	if (Y_e != 0) { TIM7->CR1 |= 0x01; }	// enable tim7
-	
-	
-	while(X_e != 0 || Y_e != 0){  //  (X_e >= 5 || X_e <= -5 || Y_e >= 5 || Y_e <= -5)
-		X_e = x - X_pos; // x-axis deviation
-		Y_e = y - Y_pos; // y-axis deviation	
-		if (X_e == 0) { TIM6->CR1 &= ~TIM_CR1_CEN; }	// disable tim6
-		if (Y_e == 0) { TIM7->CR1 &= ~TIM_CR1_CEN; }	// disable tim7
-		flag = 2;
-	}
-}
-
-
-void CNC_Init (void)
-{
-	Driver_Init();
-//	if( (GPIOB->IDR & (1 << 5)) != 0 ) { // high level GPIOE 3 - end of y
-//			Y_home = 0; // not home
-//		}	
-//		else{ Y_home = 1; } // at home
-//		if( (GPIOB->IDR & (1 << 6)) != 0 ) { // high level GPIOE 3 - end of x
-//			X_home = 0; // not home
-//		}	
-//		else{ X_home = 1; } // at home
-		
+	if(X_e < 0) { 
 		X_dir = 0;
+		GPIOA->ODR |= (1<<7); //dirX
+	}
+	else { 
+		X_dir = 1;
+		GPIOA->ODR &= ~(1<<7);
+	}
+	if(Y_e < 0) { 
 		Y_dir = 0;
-		X_period = 300;
-		Y_period = 300;
-		TIM6->ARR = X_period; // X_period
-		TIM7->ARR = Y_period; // Y_period
-		if(X_home != 1) { TIM6->CR1 |= TIM_CR1_CEN; }
-		if(Y_home != 1) { TIM7->CR1 |= TIM_CR1_CEN; }
-		
-	while(X_home != 1 || Y_home != 1){
-		if( (GPIOB->IDR & (1 << 5)) != 0 ) { // high level GPIOE 3 - end of y
-			Y_home = 0; // not home
-		}	
-		else{ // at home
-			Y_home = 1;
-			TIM7->CR1 &= ~TIM_CR1_CEN;
-		}
-		
-		if( (GPIOB->IDR & (1 << 6)) != 0 ) { // high level GPIOE 3 - end of x
-			X_home = 0; // not home
-		}	
-		else{ // at home 
-			X_home = 1; 
-			TIM6->CR1 &= ~TIM_CR1_CEN;
-		}
+		GPIOC->ODR |= (1<<4); //dirY
 	}
-	flag = 3;
-	HAL_Delay(500);
-	
-	frame = 0;
-	X_pos = 0;
-	Y_pos = 0;
-	flag = 0;
-	ProgrammIsDone = 0;
-	LoadingIsDone = 0;
-	CNC_FreeMoving(7168, 14*2048);
-	Driver_DeInit();
-	X_pos = 0;
-	Y_pos = 0;
-	uint8_t request[1];  // ready-message
-	
-	while ( HAL_UART_Receive(&huart1, request, 1, 10) != HAL_OK ){}  // waiting request from PC
-	if (request[0] == '1'){
-		//Driver_Init();
-		send_message('1');
-		//HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-		HAL_Delay(10);
-		//HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-		//Driver_Init();
+	else { 
+		Y_dir = 1;
+		GPIOC->ODR &= ~(1<<4);
 	}
-}
 
-void CNC_Moving(uint32_t x, uint32_t y)
-{
-	
-	X_e = x - X_pos; // x-axis deviation
-	Y_e = y - Y_pos; // y-axis deviation
-	//calculate_period(X_e, Y_e);
-	
-	if(X_e < 0) { X_dir = 0; }
-	else { X_dir = 1; }
-	if(Y_e < 0) { Y_dir = 0; }
-	else { Y_dir = 1; }
-//	X_dir = X_dir_buf[frame];
-//	Y_dir = Y_dir_buf[frame];
-	
-	X_period = X_period_buf[frame];
-	Y_period = Y_period_buf[frame];
 	TIM6->ARR = X_period; // X_period
 	TIM7->ARR = Y_period; // Y_period
 	
@@ -328,16 +241,110 @@ void CNC_Moving(uint32_t x, uint32_t y)
 	}
 }
 
-void compressor_on(void)
+void CNC_Moving(uint32_t x, uint32_t y)
 {
-	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_RESET);
-	//send_message('1');  // ready-message
+	
+	X_e = x - X_pos; // x-axis deviation
+	Y_e = y - Y_pos; // y-axis deviation
+	//calculate_period(X_e, Y_e);
+	
+	if(X_e < 0) { 
+		X_dir = 0;
+		GPIOA->ODR |= (1<<7); //dirX
+	}
+	else { 
+		X_dir = 1;
+		GPIOA->ODR &= ~(1<<7);
+	}
+	if(Y_e < 0) { 
+		Y_dir = 0;
+		GPIOC->ODR |= (1<<4); //dirY
+	}
+	else { 
+		Y_dir = 1;
+		GPIOC->ODR &= ~(1<<4);
+	}
+	
+	X_period = X_period_buf[frame];
+	Y_period = Y_period_buf[frame];
+	TIM6->ARR = X_period;  // X_period
+	TIM7->ARR = Y_period; // Y_period
+	
+	
+	if (X_e != 0) { TIM6->CR1 |= TIM_CR1_CEN; }	// enable tim6
+	if (Y_e != 0) { TIM7->CR1 |= TIM_CR1_CEN; }	// enable tim7
+	
+	
+	while(X_e != 0 || Y_e != 0){  //  (X_e >= 5 || X_e <= -5 || Y_e >= 5 || Y_e <= -5)
+		DWT->CYCCNT = 0; // Iaioeyai n?ao?ee
+		X_e = x - X_pos; // x-axis deviation
+		Y_e = y - Y_pos; // y-axis deviation	
+		if (X_e == 0) { TIM6->CR1 &= ~TIM_CR1_CEN; }	// disable tim6
+		if (Y_e == 0) { TIM7->CR1 &= ~TIM_CR1_CEN; }	// disable tim7
+		flag = 2;
+		cycles_count = DWT->CYCCNT; // ?eoaai n?ao?ee oaeoia
+	}
 }
 
-void compressor_off(void)
+void CNC_Init (void)
 {
-	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_SET);
-	//send_message('1');  // ready-message
+	Driver_Init();
+//	if( (GPIOE->IDR & (1 << 3)) != 0 ) { // high level GPIOE 3 - end of y
+//			Y_home = 0; // not home
+//		}	
+//		else{ Y_home = 1; } // at home
+//		if( (GPIOE->IDR & (1 << 2)) != 0 ) { // high level GPIOE 3 - end of x
+//			X_home = 0; // not home
+//		}	
+//		else{ X_home = 1; } // at home
+//		
+//		X_dir = 0;
+//		Y_dir = 0;
+//		X_period = 300;
+//		Y_period = 300;
+//		TIM6->ARR = X_period; // X_period
+//		TIM7->ARR = Y_period; // Y_period
+//		if(X_home != 1) { TIM6->CR1 |= TIM_CR1_CEN; }
+//		if(Y_home != 1) { TIM7->CR1 |= TIM_CR1_CEN; }
+//		
+//	while(X_home != 1 || Y_home != 1){
+//		if( (GPIOE->IDR & (1 << 3)) != 0 ) { // high level GPIOE 3 - end of y
+//			Y_home = 0; // not home
+//		}	
+//		else{ // at home
+//			Y_home = 1;
+//			TIM7->CR1 &= ~TIM_CR1_CEN;
+//		}
+//		
+//		if( (GPIOE->IDR & (1 << 2)) != 0 ) { // high level GPIOE 3 - end of x
+//			X_home = 0; // not home
+//		}	
+//		else{ // at home 
+//			X_home = 1; 
+//			TIM6->CR1 &= ~TIM_CR1_CEN;
+//		}
+//	}
+//	Driver_DeInit();
+	
+	CNC_FreeMoving(7000,7000);
+	Driver_DeInit();
+	frame = 0;
+	X_pos = 0;
+	Y_pos = 0;
+	flag = 0;
+	ProgrammIsDone = 0;
+	LoadingIsDone = 0;
+	uint8_t request[1];  // ready-message
+	
+	while ( HAL_UART_Receive(&huart1, request, 1, 10) != HAL_OK ){}  // waiting request from PC
+	if (request[0] == '1'){
+		//Driver_Init();
+		send_message('1');
+		//HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		HAL_Delay(10);
+		//HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		//Driver_Init();
+	}
 }
 
 void CNC_DeInit(void)
@@ -472,22 +479,6 @@ void CNC_Main(void)  // main CNC cycle
 	}
 }
 
-void E_stop(void){
-	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
-	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
-	IsEmerg = 1;
-	Driver_DeInit();
-	while (IsEmerg == 1){
-		if( (GPIOB->IDR & (1 << 3)) != 0 ) { // high level GPIOE 3 - E_stop is active
-			IsEmerg = 1;
-		}	
-		else{ IsEmerg = 0; } // E_stop is non-active
-	}
-	Driver_Init();
-	TIM6->CR1 |= TIM_CR1_CEN;	// enable tim6
-	TIM7->CR1 |= TIM_CR1_CEN;	// enable tim7
-	
-}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -502,8 +493,7 @@ void E_stop(void){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	
-	
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -524,23 +514,19 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USART1_UART_Init();
   MX_TIM6_Init();
   MX_TIM7_Init();
   MX_TIM10_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-	//Driver_Init();
-	CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk; // ????????? TRACE
-	DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk; // ????????? ??????? ??????
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	
 		CNC_Init();
-		
 		Gcode_Loader();
 		CNC_Main();
 		CNC_DeInit();
@@ -786,22 +772,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : E_stop_Pin */
-  GPIO_InitStruct.Pin = E_stop_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(E_stop_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : END_sense_Y_Pin END_sense_X_Pin */
-  GPIO_InitStruct.Pin = END_sense_Y_Pin|END_sense_X_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

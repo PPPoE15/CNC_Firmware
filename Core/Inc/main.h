@@ -53,10 +53,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-void X_driver(void);
-void Y_driver(void);
-void Z_driver(void);
-void E_stop(void);
+
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
@@ -74,13 +71,6 @@ void E_stop(void);
 #define DirZ_GPIO_Port GPIOC
 #define Enable_Pin GPIO_PIN_0
 #define Enable_GPIO_Port GPIOB
-#define E_stop_Pin GPIO_PIN_3
-#define E_stop_GPIO_Port GPIOB
-#define E_stop_EXTI_IRQn EXTI3_IRQn
-#define END_sense_Y_Pin GPIO_PIN_5
-#define END_sense_Y_GPIO_Port GPIOB
-#define END_sense_X_Pin GPIO_PIN_6
-#define END_sense_X_GPIO_Port GPIOB
 #define Air_Pin GPIO_PIN_7
 #define Air_GPIO_Port GPIOB
 
