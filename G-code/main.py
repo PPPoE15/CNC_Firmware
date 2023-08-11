@@ -4,25 +4,56 @@ import PySimpleGUI as sg
 import serial
 
 buf = [[], [], []]
-ppm = 2048/10  # pulse per millimeter
+ppm = 320  # pulse per millimeter 360 Deg / 1.8 DegPerRound / 10 mmPerRound * 16 MicrostepsPerStep
 sleep = 0.01
+text_info = 'Инструкция:\n' \
+            '0. Включаем все оборудование и подключаем контроллер к ПК\n' \
+            '1. Выбираем файл с g-кодом на ПК (поддерживаемые расширения .txt и .gcode)\n' \
+            '2. Задаем скорость перемещения\n' \
+            '3. Выбираем COM-порт к которому подключен контроллер\n' \
+            '4. Нажимаем кнопку загрузить\n' \
+            '5. Нажимаем кнопку просмотреть g-code, программа отобразится на экране\n' \
+            '6. Нажимаем кнопку подключения, ПК откроет COM-порт и подключится к контроллеру ЧПУ станка\n' \
+            '7. Нажимаем кнопку старт, ПК загрузит программу в память контроллера и станок ее начнет выполнять\n' \
+            '8. Дожидаемся окончания выполнения программы, получаем сообщение "Программа выполнена", закрываем программу\n' \
+            'Поддержка:\n экстренно: art.viktorov12@gmail.com\n по рабочим вопросам и предложениям: viktorov@gksnab.ru\n\n' \
+            '                 © ГК Снабжение   2023                    '
 
 def rnd(num):
     return int(num + (0.5 if num > 0 else -0.5))
 
+
+def serial_ports():
+    ports = ['COM%s' % (i + 1) for i in range(256)]
+    com_port_list = []
+    for port in ports:
+        try:
+            s = serial.Serial(port)
+            s.close()
+            com_port_list.append(port)
+        except (OSError, serial.SerialException):
+            pass
+    return com_port_list
+
+
+com_port_list = serial_ports()
+
 layout = [
-    [sg.Text('Выберете файл, содержащий g-code:')],
+    [sg.Text('Выберете файл, содержащий g-code:'), sg.Button('Справка')],
     [sg.Text('Путь:'), sg.InputText(key='-PATH-'), sg.FileBrowse('Выбрать')],
     [sg.Text('Задайте скорость перемещения в мм/с:')],
     [sg.InputText(key='-SPEED-')],
-    [sg.Text('Укажите номер COM-порта в формате "COMx":')],
-    [sg.InputText(key='-COM-')],
+    [sg.Text('Выберете номер COM-порта:')],  # [sg.InputText(key='-COM-')],
+    [sg.Combo(com_port_list, default_value='COM4', key='-COM-', size=(15, 1))],
     [sg.Submit('Загрузить параметры')],
     [sg.Text(' ')],
     [sg.Button('Просмотреть G-code'), sg.Button('Подключение') , sg.Button('Старт') , sg.Cancel('Выход')],
     [sg.Output(size=(100, 20))]
 ]
+
+
 window = sg.Window('ЧПУ станок для нанесения герметика', layout)
+
 while True:                             # The Event Loop
     event, values = window.read()
     if event == sg.WIN_CLOSED or event == 'Выход':
@@ -32,6 +63,8 @@ while True:                             # The Event Loop
     speed = values['-SPEED-']
     com_num = values['-COM-']
 
+    if event == 'Справка':
+        sg.popup(text_info)
     if event == 'Загрузить параметры':
         print('Загружено')
         print('Скорость = ' + speed + ' мм/c')
@@ -127,8 +160,8 @@ while True:                             # The Event Loop
                     case _:
                         print(str(i) + ' Ошибка! Неизвестная команда')
 
-        print('\nЗагрузка завершена\n')
-        window.update()
+        print('\nПрограмма завершена\n')
+        #window.update()
 
         time.sleep(5)
         program = ser.read_until('4', 1)  # wait for getting ready-message from STM
