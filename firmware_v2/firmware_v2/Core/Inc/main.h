@@ -59,6 +59,12 @@ void Z_driver(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define endX_Pin GPIO_PIN_2
+#define endX_GPIO_Port GPIOE
+#define endY_Pin GPIO_PIN_3
+#define endY_GPIO_Port GPIOE
+#define endZ_Pin GPIO_PIN_4
+#define endZ_GPIO_Port GPIOE
 #define stepX_Pin GPIO_PIN_4
 #define stepX_GPIO_Port GPIOA
 #define stepY_Pin GPIO_PIN_5

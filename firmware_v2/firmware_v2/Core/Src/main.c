@@ -31,10 +31,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define buf_size 5000
+#define buf_size 5000 // size of g-code frames buffer
 #define    DWT_CYCCNT    *(volatile unsigned long *)0xE0001004
 #define    DWT_CONTROL   *(volatile unsigned long *)0xE0001000
 #define    SCB_DEMCR     *(volatile unsigned long *)0xE000EDFC
+#define X_home_table 7000
+#define Y_home_table 7000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -50,8 +52,8 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
-uint8_t str[3];
-uint8_t TxD[1];
+uint8_t str[3]; // for messaging with PC
+uint8_t TxD[1]; // for transmit message
 uint8_t current_command = 0;
 uint8_t message = '0';  // zero state message
 /*
@@ -78,22 +80,22 @@ int32_t Z_pos = 0;
 uint8_t flag = 0; // useles
 uint32_t feed_rate = 3000; 
 uint32_t free_speed = 7000;
-uint32_t X_period = 500;
+uint32_t X_period = 500; // timer period? regulates interrupts frequency
 uint32_t Y_period = 500;
-uint32_t f = 1000000; // dont use
 int32_t X_e;
 int32_t Y_e;
 uint8_t X_home;
 uint8_t Y_home;
-uint8_t command [buf_size];
-uint32_t X_buf [buf_size];
+uint8_t Z_home;
+uint8_t command [buf_size]; // g-code commands buffer
+uint32_t X_buf [buf_size]; 	// coords buffer
 uint32_t Y_buf [buf_size];
 uint16_t X_period_buf[buf_size];
 uint16_t Y_period_buf[buf_size];
 uint16_t frame = 0;
 uint8_t X_dir_buf[buf_size];
 uint8_t Y_dir_buf[buf_size];
-
+uint8_t moveZ = 0;					// flag if we need to move Z-axis, its on tim7, same as Y-axis
 uint32_t cycles_count = 0;
 uint8_t ProgrammIsDone = 0;
 uint8_t LoadingIsDone = 0;
@@ -132,13 +134,11 @@ void delay_us(uint32_t us)
 void compressor_on(void)
 {
 	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_RESET);
-	//send_message('1');  // ready-message
 }
 
 void compressor_off(void)
 {
 	HAL_GPIO_WritePin(Air_GPIO_Port, Air_Pin, GPIO_PIN_SET);
-	//send_message('1');  // ready-message
 }
 
 void X_driver(void)
@@ -157,20 +157,6 @@ void X_driver(void)
 		cycles_count = DWT->CYCCNT; // ?eoaai n?ao?ee oaeoia
 }
 
-void Y_driver(void)
-{
-		if (Y_dir == 1){
-			Y_pos++;
-		}
-		else {
-			Y_pos--;
-		}
-
-		GPIOA->ODR |= (1<<5); //stepY
-		delay_us(10);
-		GPIOA->ODR &= ~(1<<5);
-}
-
 void Z_driver(void)
 {
 		if (Z_dir == 1){
@@ -183,6 +169,23 @@ void Z_driver(void)
 		GPIOA->ODR |= (1<<6); //stepZ
 		delay_us(10);
 		GPIOA->ODR &= ~(1<<6);
+}
+
+void Y_driver(void)
+{
+	if (moveZ == 1) { Z_driver(); }
+	else{
+		if (Y_dir == 1){
+			Y_pos++;
+		}
+		else {
+			Y_pos--;
+		}
+
+		GPIOA->ODR |= (1<<5); //stepY
+		delay_us(10);
+		GPIOA->ODR &= ~(1<<5);
+	}
 }
 
 static inline void calculate_period(int32_t x, int32_t y, uint32_t speed)
@@ -219,12 +222,10 @@ void Driver_DeInit(void)
 	GPIOB->ODR &= ~(1 << 0); // disable stepper driver
 	TIM6->CR1 &= ~TIM_CR1_CEN;	// disable tim6
 	TIM7->CR1 &= ~TIM_CR1_CEN;	// disable tim7
-	TIM10->CR1 &= ~TIM_CR1_CEN;	// disable tim10
 }
 
 void CNC_FreeMoving(uint32_t x, uint32_t y)
 {
-	
 	X_e = x - X_pos; // x-axis deviation
 	Y_e = y - Y_pos; // y-axis deviation
 	calculate_period(X_e, Y_e, free_speed);
@@ -309,47 +310,73 @@ void CNC_Moving(uint32_t x, uint32_t y)
 	}
 }
 
+
+void CNC_Homing(void){
+	X_dir = 0;
+	Y_dir = 0;
+	Z_dir = 0;
+	TIM6->ARR = 300; // X_period
+	TIM7->ARR = 300; // Y_period
+	
+	if( (GPIOE->IDR & (1 << 4)) != 0 ) { // high level GPIOE 3 - end of y
+			Z_home = 1; // at home
+	}	
+	else{ Z_home = 0; } // isnt home
+	if( (GPIOE->IDR & (1 << 3)) != 0 ) { // high level GPIOE 3 - end of y
+			Y_home = 1; // at home
+	}	
+	else{ Y_home = 0; } // isnt home
+	if( (GPIOE->IDR & (1 << 2)) != 0 ) { // high level GPIOE 3 - end of x
+			X_home = 1; // at home
+	}	
+	else{ X_home = 0; } // isnt home
+		
+	Driver_Init();
+	// first move Z up
+	if(Z_home != 1) { 
+		moveZ = 1;
+		TIM7->CR1 |= TIM_CR1_CEN; 
+	}
+	while(Z_home != 1){
+		if( (GPIOE->IDR & (1 << 4)) != 0 ) { // high level GPIOE 3 - end of y
+			TIM7->CR1 &= ~TIM_CR1_CEN;
+			Z_home = 1; // at home
+			moveZ = 0;
+		}	
+		else{ // isnt home
+			Z_home = 0;
+		}
+	}
+	
+		if(X_home != 1) { TIM6->CR1 |= TIM_CR1_CEN; }
+		if(Y_home != 1) { TIM7->CR1 |= TIM_CR1_CEN; }
+		
+	while(X_home != 1 || Y_home != 1){
+		if( (GPIOE->IDR & (1 << 3)) != 0 ) { // high level GPIOE 3 - end of y
+			Y_home = 1; // not home
+			TIM7->CR1 &= ~TIM_CR1_CEN;
+		}	
+		else{ // at home
+			Y_home = 0;
+		}
+		
+		if( (GPIOE->IDR & (1 << 2)) != 0 ) { // high level GPIOE 3 - end of x
+			X_home = 1; // not home
+			TIM6->CR1 &= ~TIM_CR1_CEN;
+		}	
+		else{ // at home 
+			X_home = 0; 
+		}
+	}
+	Driver_DeInit();
+	X_pos = 0;
+	Y_pos = 0;
+}
 void CNC_Init (void)
 {
+	CNC_Homing();
 	Driver_Init();
-//	if( (GPIOE->IDR & (1 << 3)) != 0 ) { // high level GPIOE 3 - end of y
-//			Y_home = 0; // not home
-//		}	
-//		else{ Y_home = 1; } // at home
-//		if( (GPIOE->IDR & (1 << 2)) != 0 ) { // high level GPIOE 3 - end of x
-//			X_home = 0; // not home
-//		}	
-//		else{ X_home = 1; } // at home
-//		
-//		X_dir = 0;
-//		Y_dir = 0;
-//		X_period = 300;
-//		Y_period = 300;
-//		TIM6->ARR = X_period; // X_period
-//		TIM7->ARR = Y_period; // Y_period
-//		if(X_home != 1) { TIM6->CR1 |= TIM_CR1_CEN; }
-//		if(Y_home != 1) { TIM7->CR1 |= TIM_CR1_CEN; }
-//		
-//	while(X_home != 1 || Y_home != 1){
-//		if( (GPIOE->IDR & (1 << 3)) != 0 ) { // high level GPIOE 3 - end of y
-//			Y_home = 0; // not home
-//		}	
-//		else{ // at home
-//			Y_home = 1;
-//			TIM7->CR1 &= ~TIM_CR1_CEN;
-//		}
-//		
-//		if( (GPIOE->IDR & (1 << 2)) != 0 ) { // high level GPIOE 3 - end of x
-//			X_home = 0; // not home
-//		}	
-//		else{ // at home 
-//			X_home = 1; 
-//			TIM6->CR1 &= ~TIM_CR1_CEN;
-//		}
-//	}
-//	Driver_DeInit();
-	
-	CNC_FreeMoving(7000,7000);
+	CNC_FreeMoving(7000,7000); // move to table home position
 	Driver_DeInit();
 	frame = 0;
 	X_pos = 0;
@@ -361,18 +388,16 @@ void CNC_Init (void)
 	
 	while ( HAL_UART_Receive(&huart1, request, 1, 10) != HAL_OK ){}  // waiting request from PC
 	if (request[0] == '1'){
-		//Driver_Init();
 		send_message('1');
-		//HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 		HAL_Delay(10);
-		//HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-		//Driver_Init();
+
 	}
 }
 
 void CNC_DeInit(void)
 {
 	compressor_off();
+	CNC_Homing();
 	Driver_DeInit();
 }
 
@@ -396,13 +421,7 @@ void Gcode_Loader(void)  // main CNC cycle
 					calculate_period(x_coord - x_prev,y_coord - y_prev, free_speed);
 					X_period_buf[frame] = X_period;
 					Y_period_buf[frame] = Y_period;
-			
-//					if(x_coord - x_prev < 0) { X_dir = 0; }
-//					else { X_dir = 1; }
-//					if(y_coord - y_prev < 0) { Y_dir = 0; }
-//					else { Y_dir = 1; }
-//					X_dir_buf[frame] = X_dir;
-//					Y_dir_buf[frame] = Y_dir;
+
 					x_prev = x_coord;
 					y_prev = y_coord;
 					
@@ -417,16 +436,11 @@ void Gcode_Loader(void)  // main CNC cycle
 					calculate_period(x_coord - x_prev,y_coord - y_prev, feed_rate);
 					X_period_buf[frame] = X_period;
 					Y_period_buf[frame] = Y_period;
-			
-//					if(x_coord - x_prev < 0) { X_dir = 0; }
-//					else { X_dir = 1; }
-//					if(y_coord - y_prev < 0) { Y_dir = 0; }
-//					else { Y_dir = 1; }
-//					X_dir_buf[frame] = X_dir;
-//					Y_dir_buf[frame] = Y_dir;
+
 					x_prev = x_coord;
 					y_prev = y_coord;
 					break;
+			
 			case '0':
 					//send_message('1'); // ready-message
 					break;
@@ -443,7 +457,7 @@ void Gcode_Loader(void)  // main CNC cycle
 			
 			case '5':  // final of programm
 					LoadingIsDone = 1;
-					CNC_DeInit();
+					
 					//send_message('4'); // program is completed
 					break;
 			
@@ -463,7 +477,6 @@ void CNC_Main(void)  // main CNC cycle
 	HAL_Delay(100);
 	while (ProgrammIsDone == 0)
 	{	
-		
 		switch(command[frame])
 		{
 			case '1': case '3':  //  get a coordinate command (free or work moving) G00 = '1' / G01 = '3'
@@ -728,6 +741,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -741,6 +755,12 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, Enable_Pin|Air_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : endX_Pin endY_Pin endZ_Pin */
+  GPIO_InitStruct.Pin = endX_Pin|endY_Pin|endZ_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : stepX_Pin stepY_Pin stepZ_Pin dirX_Pin */
   GPIO_InitStruct.Pin = stepX_Pin|stepY_Pin|stepZ_Pin|dirX_Pin;
